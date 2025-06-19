@@ -3,4 +3,4 @@ run: build
 	./main
 
 build:
-	gcc -g -o main main.c
+	gcc -Wall -g -o main main.c
