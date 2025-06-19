@@ -38,49 +38,141 @@ void store_file(file* f, char* file_name)
 
 }
 
-typedef struct {
-    size_t count;
-    char** names;
-} types;
-
-enum TOKENS {
+typedef enum {
     TYPE = 0,
+    PARENTHESES,
     VARIBLE,
     FUNCTION,
-    EXPRESSION,
+    CONSTANT,
     KEY_WORD,
-};
+    UNKNOWN,
+} TOKEN_TYPE;
+
+typedef struct {
+    TOKEN_TYPE type;
+    char* data;
+} token;
+
+bool token_is_type(token* t) {
+    return true;
+}
+
+bool token_is_parentheses(token* t) {
+    return true;
+}
+
+bool token_is_varible(token* t) {
+    return true;
+}
+
+bool token_is_function(token* t) {
+    return true;
+}
+
+bool token_is_constant(token* t) {
+    return true;
+}
+
+bool token_is_key_word(token* t) {
+    return true;
+}
 
 
-
-void read_unitl_token(file* f, int* start_pos)
+TOKEN_TYPE get_token_type(token* t)
 {
-    types types;
-    types.count = 2;
-    char* t[2] =  {"int", "char"};
-    types.names = t;
+    if (token_is_type(t)) {
+        return TYPE;
+    } else if (token_is_parentheses(t)) {
+        return PARENTHESES;
+    } else if (token_is_varible(t)) {
+        return VARIBLE;
+    } else if (token_is_function(t)) {
+        return FUNCTION;
+    } else if (token_is_constant(t)) {
+        return CONSTANT;
+    } else if (token_is_key_word(t)) {
+        return KEY_WORD;
+    }
+    return UNKNOWN;
+}
 
-    
-    int end_pos = 1;
+// TODO: This is bad, should have a more robust method of finding the end of a token
+bool is_token_end(char c)
+{
+    return (c == ' ' || c == ';' || c == '+' || c == '-' || c == '*' || c == '/' || c == '}'|| c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}');
+}
+
+bool is_token(file* f, char* current_str, int* start_pos, int end_pos)
+{
+    int len = end_pos - *start_pos;
+    if (is_token_end(f->data[end_pos])) {
+        *start_pos += len;
+        return true;
+    }
+
+    return false;
+}
+
+token get_next_token(file* f, int* start_pos)
+{
+    token t;    
+    int end_pos = *start_pos + 1;
     bool token_found = false;
+    
     while (!token_found) {
         int len = end_pos - *start_pos;
-        printf("len: %i\n", len);
-        for (int i = 0; i < types.count; i++) {
-            char* type = types.names[i];
-            char current_str[100];
-            strncpy(current_str, f->data + *start_pos, len);
-            current_str[len] = (char)NULL;
-            printf("comparing: \"%s\" and \"%s\", len: %i\n", type, current_str, len);
-            if (strncmp(current_str, type, strlen(type)) == 0) {
-                printf("type: %s found\n", type);
-                token_found = true;
-                i = types.count;
-            }
+        
+        char* current_str = malloc((len + 1)*sizeof(char));
+        
+        strncpy(current_str, f->data + *start_pos, len);
+        current_str[len] = '\0';
 
+        if (is_token(f, current_str, start_pos, end_pos)) {
+            token_found = true;
+            t.data = current_str;
+            
+        } else {
+            free(current_str);
         }
         end_pos++;
     }
+
+    t.type = get_token_type(&t);
+    return t;
+}
+
+void remove_bad_chars(char* data)
+{
+    
+    int len = strlen(data);
+    for (int i = 0; i < len; i++) {
+        if (data[i] == ' ' || data[i] == '\n') {
+            for (int j = i; j < len; j++) {
+                data[j] = data[j + 1];
+            }
+            i--;
+            len--;
+        }
+    }
+
+}
+    
+void clean_tokens(token tokens[], int* tokens_count)
+{
+    printf("token count2: %i\n", *tokens_count);
+    for (int i = 0; i < *tokens_count; i++) {
+        remove_bad_chars(tokens[i].data);
+        
+        // remove empty tokens 
+        if (strlen(tokens[i].data) == 0) {
+            for (int j = i; j < *tokens_count; j++) {
+                tokens[j] = tokens[j + 1];
+            }
+            i--;
+            (*tokens_count)--;
+        }
+    }
+
 }
 
 int main()
@@ -88,15 +180,23 @@ int main()
     char name[] = "./tests/test1.c";
     file f;
     store_file(&f, name);
-
+    for (int i = 0; i < f.size; i++) {
+        printf("%c", f.data[i]);
+    }
     int pos = 1;
-    //while (true) {
-    read_unitl_token(&f, &pos);
-    pos++;
-        
-    //}
+    token tokens[1000];
+    int tokens_count = 0;
+    while (pos < f.size) {
+        token t = get_next_token(&f, &pos);
+        tokens[tokens_count] = t;
+        tokens_count++;
+    }
     
-    // 
+    clean_tokens(tokens, &tokens_count);
+    for (int i = 0; i < tokens_count; i++) {
+        printf("token: %s\n", tokens[i].data);
+    }
+    
 
     
 
