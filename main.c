@@ -82,9 +82,9 @@ typedef enum {
     SEMICOLON,
     NUMBER,
     KEY_WORD,
-    OPERATOR,
     OTHER,
-
+     
+    //Parentheses
     PAREN_OPEN,
     PAREN_CLOSE,
     PAREN_CURLY_OPEN,
@@ -92,6 +92,7 @@ typedef enum {
     PAREN_SQUARE_OPEN,
     PAREN_SQUARE_CLOSE,
 
+    // Key Words
     AUTO,
     BREAK,
     CASE,
@@ -119,12 +120,41 @@ typedef enum {
     VOLATILE,
     WHILE,
 
-    BOOL_EQUALS,
-    BOOL_NOT_EQUALS,
+    // Operations
+    POST_INCREMENT,
+    POST_DECREMENT,
+    UNARY_PLUS,
+    UNARY_MINUS,
+    LOGICAL_NOT,
+    BITWISE_NOT,
+    
+    TIMES,
+    DIVIDE,
+    MODULO,
+    
+    PLUS,
+    MINUS,
+    
+    LEFT_SHIFT,
+    RIGHT_SHIFT,
+    
     BOOL_LESS_THAN,
     BOOL_LESS_THAN_OR_EQUALS,
     BOOL_GREATER_THAN,
     BOOL_GREATER_THAN_OR_EQUALS,
+    
+    BOOL_EQUALS,
+    BOOL_NOT_EQUALS,
+    
+    BITWISE_AND,
+    BITWISE_XOR,
+    BITWISE_OR,
+    
+    LOGICAL_AND,
+    LOGICAL_OR,
+    
+    TERNARY_CONDITIONAL,
+    COLON,
     EQUALS,
     PLUS_EQUALS,
     MINUS_EQUALS,
@@ -136,26 +166,6 @@ typedef enum {
     XOR_EQUALS,
     LEFT_SHIFT_EQUALS,
     RIGHT_SHIFT_EQUALS,
-    PLUS,
-    MINUS,
-    TIMES,
-    DIVIDE,
-    MODULO,
-    BITWISE_AND,
-    BITWISE_OR,
-    BITWISE_XOR,
-    LEFT_SHIFT,
-    RIGHT_SHIFT,
-    LOGICAL_AND,
-    LOGICAL_OR,
-    POINTER_DEREFERENCE,
-    ADDRESS_OF,
-    MEMBER_ACCESS_POINTER,
-    MEMBER_ACCESS,
-    MEMBER_DEREFERENCE_POINTER,
-    MEMBER_DEREFERENCE,
-    TERNARY_CONDITIONAL,
-    COLON,
 } TOKEN_TYPE;
 
 typedef struct {
@@ -264,45 +274,59 @@ bool token_is_key_word(token* t) {
 
 
 // https://en.cppreference.com/w/cpp/language/operator_precedence.html
+// This is also in reverse order of precedence
 static const mapping operator_mapping[] = {
-    {"=="  , BOOL_EQUALS},
-    {"!="  , BOOL_NOT_EQUALS},
-    {"<"   , BOOL_LESS_THAN},
-    {"<="  , BOOL_LESS_THAN_OR_EQUALS},
-    {">"   , BOOL_GREATER_THAN},
-    {">="  , BOOL_GREATER_THAN_OR_EQUALS},
-    {"="   , EQUALS},
-    {"+="  , PLUS_EQUALS},
-    {"-="  , MINUS_EQUALS},
-    {"*="  , TIMES_EQUALS},
-    {"/="  , DIVIDE_EQUALS},
-    {"%="  , MODULO_EQUALS},
-    {"&="  , AND_EQUALS},
-    {"|="  , OR_EQUALS},
-    {"^="  , XOR_EQUALS},
-    {"<<=" , LEFT_SHIFT_EQUALS},
-    {">>=" , RIGHT_SHIFT_EQUALS},
-    {"+"   , PLUS},
-    {"-"   , MINUS},
-    {"*"   , TIMES},
-    {"/"   , DIVIDE},
-    {"%"   , MODULO},
-    {"&"   , BITWISE_AND},
-    {"|"   , BITWISE_OR},
-    {"^"   , BITWISE_XOR},
-    {"<<"  , LEFT_SHIFT},
-    {">>"  , RIGHT_SHIFT},
-    {"&&"  , LOGICAL_AND},
-    {"||"  , LOGICAL_OR},
-    {"*"   , POINTER_DEREFERENCE},
-    {"&"   , ADDRESS_OF},
-    {"->"  , MEMBER_ACCESS_POINTER},
-    {"."   , MEMBER_ACCESS},
-    {"->*" , MEMBER_DEREFERENCE_POINTER},
-    {".*"  , MEMBER_DEREFERENCE},
-    {"?"   , TERNARY_CONDITIONAL},
-    {":"   , COLON},
+    {"++", POST_INCREMENT},
+    {"--", POST_DECREMENT},
+    {"+", PLUS},
+    {"-", MINUS},
+    {"!", LOGICAL_NOT},
+    {"~", BITWISE_NOT},
+
+    {"*", TIMES},
+    {"/", DIVIDE},
+    {"%", MODULO},
+
+    {"+", PLUS},
+    {"-", MINUS},
+
+    {"<<", LEFT_SHIFT},
+    {">>", RIGHT_SHIFT},
+
+    {"<", BOOL_LESS_THAN},
+    {"<=", BOOL_LESS_THAN_OR_EQUALS},
+    {">", BOOL_GREATER_THAN},
+    {">=", BOOL_GREATER_THAN_OR_EQUALS},
+
+    {"==", BOOL_EQUALS},
+    {"!=", BOOL_NOT_EQUALS},
+
+    {"&", BITWISE_AND},
+
+    {"^", BITWISE_XOR},
+
+    {"|", BITWISE_OR},
+
+    {"&&", LOGICAL_AND},
+
+    {"||", LOGICAL_OR},
+
+    {"?", TERNARY_CONDITIONAL},
+    {":", COLON},
+
+    {"=", EQUALS},
+    {"+=", PLUS_EQUALS},
+    {"-=", MINUS_EQUALS},
+    {"*=", TIMES_EQUALS},
+    {"/=", DIVIDE_EQUALS},
+    {"%=", MODULO_EQUALS},
+    {"&=", AND_EQUALS},
+    {"|=", OR_EQUALS},
+    {"^=", XOR_EQUALS},
+    {"<<=", LEFT_SHIFT_EQUALS},
+    {">>=", RIGHT_SHIFT_EQUALS},
 };
+
 
 
 bool token_is_operator(token* t)
@@ -443,8 +467,11 @@ void generate_default_types(dynamic_array* ts)
 }
 
 typedef enum {
-    FUNCTION = 0,
-    VARIBLE  = 1,    
+    FUNCTION,
+    VARIBLE,
+    CONSTANT,
+    OPERATOR,
+    
 } NODE_TYPE;
 
 
@@ -461,7 +488,6 @@ void init_AST_node(AST_node* node)
     da_init(node_da, AST_node);
     node->children = node_da;
 }
-
 
 typedef struct {
     type* type;
@@ -483,6 +509,12 @@ typedef struct {
     type* type;
     char* name;
 } varible;
+
+typedef struct {
+    char* name;
+    TOKEN_TYPE type;
+} operator;
+
 
 type* get_type_from_str(dynamic_array* types, char* str)
 {
@@ -531,42 +563,48 @@ AST_node* get_main_function(dynamic_array* types, dynamic_array* tokens)
 
 int find_closing_paren(dynamic_array* tokens, int starting_token_location)
 {
-    int i = 0;
+    if (((token**)tokens->data)[starting_token_location]->type != PAREN_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_OPEN) {
+        fprintf(stderr, "ERROR: input to find_closing_paren was not a parenthese, it was %s with type %i\n", ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
+    }
+    
+    int i = starting_token_location;
     int paren_count = 1;
     TOKEN_TYPE token_type = ((token**)tokens->data)[starting_token_location]->type;
     while (paren_count != 0) {
         i++;
+        if (i >= tokens->count) {
+            fprintf(stderr, "ERROR: Unable to find closing paren for %s, at index %i and location %i\n", ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
+        }
         switch (token_type) {
         case PAREN_OPEN: {
-            if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_CLOSE) {
+            if (((token**)tokens->data)[i]->type == PAREN_CLOSE) {
                 paren_count--;
-            } else if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_OPEN) {
+            } else if (((token**)tokens->data)[i]->type == PAREN_OPEN) {
                 paren_count++;
             }
             break;
         }
         case PAREN_CURLY_OPEN: {
-            if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_CURLY_CLOSE) {
+            if (((token**)tokens->data)[i]->type == PAREN_CURLY_CLOSE) {
                 paren_count--;
-            } else if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_CURLY_OPEN) {
+            } else if (((token**)tokens->data)[i]->type == PAREN_CURLY_OPEN) {
                 paren_count++;
             }
             break;
         }
         case PAREN_SQUARE_OPEN: {
-            if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_SQUARE_CLOSE) {
+            if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_CLOSE) {
                 paren_count--;
-            } else if (((token**)tokens->data)[starting_token_location + i]->type == PAREN_SQUARE_OPEN) {
+            } else if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_OPEN) {
                 paren_count++;
             }
             break;
         }
-        default: {
-            fprintf(stderr, "ERROR: input to find_closing_paren was not a parenthese, it was %s with type %i\n", ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
-            break;
+        default: {}
         }
-        }
+
     }
+    printf("found end of paren at index %i and location %i with token str: %s\n", i, ((token**)tokens->data)[i]->pos_in_file, ((token**)tokens->data)[i]->data);
     return i;
 }
 
@@ -585,6 +623,7 @@ int find_semi_colon(dynamic_array* tokens, int start_location)
 {
     for (int i = start_location; i < tokens->count; i++) {
         if (((token**)tokens->data)[i]->type == SEMICOLON) {
+            printf("Found semicolon at index %i\n", i);
             return i;
         }
     }
@@ -592,58 +631,156 @@ int find_semi_colon(dynamic_array* tokens, int start_location)
     return -1;
 }
 
-AST_node* create_rhs_AST_node(dynamic_array* types, dynamic_array* tokens, int rhs_start_location)
+// TODO: This function will messup when we add parentheses
+// Also, this is a bad name for the function
+AST_node* create_single_rvalue_node(dynamic_array* types, dynamic_array* tokens, int start_location, int end_location)
 {
-    AST_node* rhs_AST_node = malloc(sizeof(AST_node));
-    init_AST_node(rhs_AST_node);
-    
-    int rhs_end_location = find_semi_colon(tokens, rhs_start_location);
-    for (int i = rhs_start_location; i < rhs_end_location; i++) {
-        // (3)
-        // (2) + 3
-        // (2*3) + 2
-        // 2*(3) + 2
-        // 2*(3) + 2
-        // 2*(2 + 3) + 2
-        if (token_is_number(((token**)tokens->data)[i])) {
-            //reate_constant_AST_node()
+    if (end_location - start_location > 1) {
+        fprintf(stderr, "ERROR: More than one value in 'create_single_rvalue_node', this has not been delt with yet\nThe tokens are:\n");
+        for (int i = start_location; i < end_location; i++) {
+            fprintf(stderr, "    %s\n", ((token**)tokens->data)[i]->data);
         }
-
-                
     }
-    return NULL;
+    // TODO: Maybe off by one with start_location/end_location?
+    token* t = ((token**)tokens->data)[start_location];
+    AST_node* node = malloc(sizeof(AST_node));
+    init_AST_node(node);
+
+    // TODO: Better type handling and stuff
+    if (token_is_number(t)) {
+        node->node_type = CONSTANT;
+        node->token = t;
+        constant* c = malloc(sizeof(constant));
+        
+        // TODO: Type stuff
+        //c->type =
+        c->value = t->data;
+        node->data = (void*)c;
+    } else {
+        // TODO: For now we assume that it is a varible, if not a constant
+        node->node_type = VARIBLE;
+        node->token = t;
+        varible* v = malloc(sizeof(varible));
+        
+        // TODO: Type stuff
+        //v->type =
+        v->name = t->data;
+        node->data = (void*)v;
+        
+    }
+          
+    return node;
 }
 
-void generate_AST(AST_node* root, dynamic_array* types, dynamic_array* tokens)
+AST_node* create_expression_AST_node(dynamic_array* types, dynamic_array* tokens, int start_location, int end_location)
 {
-    root = get_main_function(types, tokens);
+
+    for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
+        for (int j = start_location; j < end_location; j++) {
+            // Skip the things in parentheses
+            if (((token**)tokens->data)[j]->type == PAREN_OPEN) {
+                printf("skipped parens\n");
+                j = find_closing_paren(tokens, j);
+            }
+            // Go from lowest precedence to highest and create left/right nodes containing the left and right of the expression
+            else if (token_is_operator(((token**)tokens->data)[j]) && ((token**)tokens->data)[j]->type == operator_mapping[i].type) {
+                printf("found operator %s at idx %i\n", ((token**)tokens->data)[j]->data, j);
+                AST_node* node = malloc(sizeof(AST_node));
+                init_AST_node(node);
+                node->node_type = OPERATOR;
+                node->token = ((token**)tokens->data)[j];
+
+                operator* o = malloc(sizeof(operator));
+                o->type = node->token->type;
+                o->name = node->token->data;
+                node->data = (void*)o;
+
+                int left_start = start_location;
+                int left_end = j - 1;
+                printf("calling left create_expression_AST_node from %i to %i\n", left_start, left_end);
+                AST_node* left_node = create_expression_AST_node(types, tokens, left_start, left_end);
+
+                int right_start = j + 1;
+                int right_end = end_location;
+                printf("calling right create_expression_AST_node from %i to %i\n", right_start, right_end);
+                AST_node* right_node = create_expression_AST_node(types, tokens, right_start, right_end);
+                
+                da_append(node->children, left_node, AST_node*);
+                da_append(node->children, right_node, AST_node*);
+                return node;
+            }
+
+        }
+        
+    }
+    // There are no operators in the currnet token list
+    // We have reached a costant number, string, char, etc. Now we must make and return it.
+    //printf("start loc: %i, end loc: %i\n", start_location, end_location);
+    return create_single_rvalue_node(types, tokens, start_location, end_location);
+}
+
+
+
+
+AST_node* generate_AST(dynamic_array* types, dynamic_array* tokens)
+{
+    AST_node* root = get_main_function(types, tokens);
+    
     int main_token_location = get_token_location(tokens, root->token);
     int main_inputs_token_end = find_closing_paren(tokens, main_token_location + 1);
-    int main_lower_token_range = find_closing_paren(tokens, main_inputs_token_end + 1);
-    int main_upper_token_range = find_closing_paren(tokens, main_lower_token_range + 1);
+    int main_lower_token_range = main_inputs_token_end + 2;
+    int main_upper_token_range = find_closing_paren(tokens, main_lower_token_range - 1);
+
+    printf("main location %i inputs %i\n", main_token_location, main_inputs_token_end);
+    printf("main lower %i upper %i\n", main_lower_token_range, main_upper_token_range);
     
+
     for (int i = main_lower_token_range; i < main_upper_token_range; i++) {
+        printf("Checking token %s at index %i\n", ((token**)tokens->data)[i]->data, i);
         if (((token**)tokens->data)[i]->type == TYPE && ((token**)tokens->data)[i + 1]->type != OTHER) {
             fprintf(stderr, "ERROR: Line %i delceration after type is expected\n", ((token**)tokens->data)[i + 1]->pos_in_file);
-        } else if (((token**)tokens->data)[i]->type == TYPE &&
+        } else if (((token**)tokens->data)[i]->type == OTHER &&
                    ((token**)tokens->data)[i + 1]->type == OTHER &&
-                   ((token**)tokens->data)[i + 2]->type == OPERATOR &&
-                   strcmp(((token**)tokens->data)[i + 2]->data, "=") == 0) {
+                   ((token**)tokens->data)[i + 2]->type == EQUALS) {
             // Assignment
-            AST_node* assignment_node = malloc(sizeof(AST_node));
-            init_AST_node(assignment_node);
+            printf("Creating expression tree for index %i\n", i + 1);
             
-            assignment_node->token = ((token**)tokens->data)[i + 1];
-            assignment_node->node_type = VARIBLE;
+            AST_node* assign_node = malloc(sizeof(AST_node));
+            init_AST_node(assign_node);
+            
+            assign_node->token = ((token**)tokens->data)[i + 2];
+            assign_node->node_type = OPERATOR;
+            
+            operator* operator = malloc(sizeof(operator));
+            operator->type = ((token**)tokens->data)[i + 2]->type;
+            operator->name = ((token**)tokens->data)[i + 2]->data;
+            assign_node->data = (void*)(operator);
+
+            
+            AST_node* varible_node = malloc(sizeof(AST_node));
+            init_AST_node(varible_node);
+            
+            varible_node->token = ((token**)tokens->data)[i + 1];
+            varible_node->node_type = VARIBLE;
 
             varible* varible = malloc(sizeof(varible));
             varible->type = get_type_from_str(types, ((token**)tokens->data)[i]->data);
-            assignment_node->data = (void*)(varible);
+            operator->name = ((token**)tokens->data)[i + 1]->data;
+            varible_node->data = (void*)(varible);
 
-            AST_node* value_node = malloc(sizeof(AST_node));
-            init_AST_node(value_node);
-            value_node = create_rhs_AST_node(types, tokens, i + 3);
             
+            
+            AST_node* rvalue_node = malloc(sizeof(AST_node));
+            init_AST_node(rvalue_node);
+
+            int rhs_end_location = find_semi_colon(tokens, i) - 1;
+            printf("start idx: %i, end idx: %i\n", i + 3, rhs_end_location);
+            rvalue_node = create_expression_AST_node(types, tokens, i + 3, rhs_end_location);
+
+            da_append(assign_node->children, varible_node, AST_node*);
+            da_append(assign_node->children, rvalue_node, AST_node*);
+                                                                         
+            da_append(root->children, assign_node, AST_node*);
             
             //printf("Varible of type %s and name %s was created with value %s\n", );
         }
@@ -652,10 +789,16 @@ void generate_AST(AST_node* root, dynamic_array* types, dynamic_array* tokens)
     //    AST_node* main_return_node = malloc(sizeof(AST_node));
     //    //main_return_node->
                                                                                   //}
-    
+    return root;
 }
 
-
+void print_AST_node(AST_node* node, int level) {
+    level = level + 1;
+    for (int i = 0; i < node->children->count; i++) {
+        printf("\"%s, %i\" -> \"%s, %i\"\n", node->token->data, node->token->pos_in_file, ((AST_node**)(node->children->data))[i]->token->data, ((AST_node**)(node->children->data))[i]->token->pos_in_file);
+        print_AST_node(((AST_node**)(node->children->data))[i], level);
+    }
+}
 
 int main()
 {
@@ -683,7 +826,7 @@ int main()
     clean_tokens(&tokens);
     for (int i = 0; i < tokens.count; i++) {
         ((token**)tokens.data)[i]->type = get_token_type(((token**)tokens.data)[i], &ts);
-        printf("token at %i: %s and type %i\n", ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
     }
 
 
@@ -701,8 +844,8 @@ int main()
 
     
     // Generate AST
-    AST_node* main_node;
-    generate_AST(main_node, &ts, &tokens);
+    AST_node* main_node = generate_AST(&ts, &tokens);
 
+    print_AST_node(main_node, 0);
     return 0;
 }
