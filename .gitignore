@@ -3,3 +3,4 @@ test1
 *~
 *.asm
 *.gv
+*.o

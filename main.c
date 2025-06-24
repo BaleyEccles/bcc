@@ -509,6 +509,7 @@ typedef struct {
 typedef struct {
     type* type;
     char* name;
+    int stack_pos;
 } varible;
 
 typedef struct {
@@ -524,20 +525,21 @@ typedef struct {
 
 
 
-
-
 void add_nodes_to_graphviz_file(AST_node* node, FILE* f) {
     
     for (int i = 0; i < node->children->count; i++) {
+
         fprintf(f, "\"%s, %i\" -> \"%s, %i\"\n",
                 node->token->data,
                 node->token->pos_in_file,
                 ((AST_node**)(node->children->data))[i]->token->data,
                 ((AST_node**)(node->children->data))[i]->token->pos_in_file
                 );
+
         add_nodes_to_graphviz_file(((AST_node**)(node->children->data))[i], f);
     }
 }
+
 void generate_graphviz_from_AST_node(AST_node* node, char* file_name) {
     FILE* graphviz_file = fopen(file_name, "w");
     fprintf(graphviz_file, "digraph G {\n");
@@ -775,7 +777,23 @@ AST_node* create_expression_AST_node(AST_node* scope, dynamic_array* types, dyna
     return create_single_rvalue_node(scope, types, tokens, start_location, end_location);
 }
 
-
+int generate_stack_posistions(AST_node* scope, int stack_size)
+{
+    for (int i = 0; i < scope->children->count; i++) {
+        AST_node* child = ((AST_node**)scope->children->data)[i];
+        if (child->node_type == VARIBLE) {
+            if (((varible*)child->data)->stack_pos == 0) {
+                // TOOD: Deal with different types / different sizes
+                stack_size += 4;
+                ((varible*)child->data)->stack_pos = stack_size;
+            }
+        }
+        stack_size = generate_stack_posistions(child, stack_size);
+    }
+    
+    return stack_size;
+    
+}
 
 AST_node* generate_AST(dynamic_array* types, dynamic_array* tokens)
 {
@@ -861,12 +879,14 @@ AST_node* generate_AST(dynamic_array* types, dynamic_array* tokens)
 
                 key_word_node->node_type = KEY_WORD;
                 key_word_node->token = ((token**)tokens->data)[i];
-                key_word_node->data;
+                
                 
                 key_word* kw = malloc(sizeof(key_word));
                 kw->name = ((token**)tokens->data)[i]->data;
                 kw->key_word_type = RETURN;
                 kw->data = NULL;
+                
+                key_word_node->data = kw;
 
                 int rhs_end_location = find_semi_colon(tokens, i) - 1;
                 AST_node* rvalue_node = create_expression_AST_node(root, types, tokens, i + 1, rhs_end_location);
@@ -882,14 +902,78 @@ AST_node* generate_AST(dynamic_array* types, dynamic_array* tokens)
             }
         }
     }
-    //if (strcmp(((function*)main_node->data)->return_type->string, "void") != 0) {
-    //    AST_node* main_key_word_node = malloc(sizeof(AST_node));
-    //    //main_key_word_node->
-    //}
+
+    int sp = generate_stack_posistions(root, 0);
+    
     return root;
 }
 
+void generate_template_asm(FILE* file, AST_node* root)
+{
+    fprintf(file, ".section .text\n");
+    fprintf(file, ".globl _start\n");
+    fprintf(file, "\n");
+    fprintf(file, "_start:\n");
+    fprintf(file, "    pushq   %rbp\n");
+    fprintf(file, "    movq    %rsp, %rbp\n");
+    fprintf(file, "\n");
+}
 
+void compute_rvalue(FILE* file, AST_node* node)
+{
+    if (node->node_type == OPERATOR) {
+
+        AST_node* child1 = ((AST_node**)node->children->data)[0];
+        AST_node* child2 = ((AST_node**)node->children->data)[1];
+        compute_rvalue(file, child2);
+        fprintf(file, "    addl $%s, %%eax\n", ((constant*)child1->data)->value);
+        
+    }
+    if (node->node_type == CONSTANT) {
+        fprintf(file, "    movl $%s, %%eax\n", ((constant*)node->data)->value);
+    }
+}
+
+
+void create_asm_file(FILE* file, AST_node* root)
+{
+    if (strcmp(((function*)root->data)->name, "main") != 0) {
+        fprintf(stderr, "%s:%d: error: root node is not the main function\n", __FILE__, __LINE__);
+    }
+    generate_template_asm(file, root);
+    for (int i = 0; i < root->children->count; i++) {
+        AST_node* node = ((AST_node**)root->children->data)[i];
+        if (node->node_type == OPERATOR) {
+            fprintf(file, "    movl $0, -%i(%%rbp)\n", ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
+            compute_rvalue(file, ((AST_node**)node->children->data)[1]);
+            fprintf(file, "    movl %%eax, -%i(%%rbp)\n", ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
+            fprintf(file, "\n");
+        }
+        if (node->node_type == KEY_WORD) {
+            key_word* kw = (key_word*)node->data;
+            switch (kw->key_word_type) {
+            case RETURN: {
+                // We need to do different things if we are returning from main or a user function
+                if (strcmp(((function*)root->data)->name, "main") == 0) {
+                    // Do syscall return
+                    fprintf(file, "    movl -%i(%rbp), %%eax\n", ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
+                    fprintf(file, "    movl %%eax, %%edi\n");
+                    fprintf(file, "    movl $60, %%eax\n");
+                    fprintf(file, "    syscall\n");
+                }
+                else {
+                    
+                }
+                break;
+            }
+            default: {
+                fprintf(stderr, "%s:%d: TODO: Key word '%s' was not handled\n", __FILE__, __LINE__, kw->name);
+                break;
+            }
+            }
+        }
+    }
+}
 
 int main()
 {
@@ -917,15 +1001,29 @@ int main()
     clean_tokens(&tokens);
     for (int i = 0; i < tokens.count; i++) {
         ((token**)tokens.data)[i]->type = get_token_type(((token**)tokens.data)[i], &ts);
-        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
     }
 
     
     // Generate AST
     AST_node* main_node = generate_AST(&ts, &tokens);
 
+    
+
     generate_graphviz_from_AST_node(main_node, "graph.gv");
+    
+    FILE* asm_file = fopen("output.asm", "w");
+    create_asm_file(asm_file, main_node);
+    fclose(asm_file);
+    
+    asm_file = fopen("output.asm", "r");
+    char c;
+    printf("\nAssembly file:\n\n");
+    while ((c = getc(asm_file)) != EOF) {
+        printf("%c", c);
+    }
 
     
+
     return 0;
 }
