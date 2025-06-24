@@ -781,9 +781,6 @@ AST_node* create_single_rvalue_node(AST_node* scope, dynamic_array* tokens, int 
         if (!is_varible_defined(scope, t->data)) {
             fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, t->data, t->pos_in_file);
         }
-        if (get_node_from_pos(scope, t->pos_in_file) == NULL) {
-            fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i could not be found\n", __FILE__, __LINE__, t->data, t->pos_in_file);
-        }
         node = get_varible_node_from_name(scope, t->data);
         // TODO: For now we assume that it is a varible, if not a constant
         node->node_type = VARIBLE;
@@ -864,10 +861,7 @@ int generate_stack_posistions(AST_node* scope, int stack_size)
 AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end)
 {
 
-    printf("create ast from %i to %i\n", start, end);
-
     for (int i = start; i < end; i++) {
-        printf("token index %i\n", i);
         if (((token**)tokens->data)[i]->type == TYPE && ((token**)tokens->data)[i + 1]->type != OTHER) {
             fprintf(stderr, "%s:%d: error: Line %i delceration after type is expected\n", __FILE__, __LINE__, ((token**)tokens->data)[i + 1]->pos_in_file);
         } else if (((token**)tokens->data)[i]->type == OTHER &&
@@ -955,11 +949,9 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
 
                 da_append(key_word_node->children, rvalue_node, AST_node*);
                 da_append(node->children, key_word_node, AST_node*);
-                printf("created return node %i\n", i);
                 break;
             }
             case IF: {
-                printf("doing if\n");
                 AST_node* key_word_node = malloc(sizeof(AST_node));
                 init_AST_node(key_word_node);
 
@@ -967,6 +959,7 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
                 key_word_node->token = ((token**)tokens->data)[i];
                 key_word* kw = malloc(sizeof(key_word));
                 kw->key_word_type = IF;
+                kw->name = ((token**)tokens->data)[i]->data;
                 kw->data = NULL;
                 key_word_node->data = kw;
 
@@ -976,7 +969,6 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
 
                 int if_condition_start_location = i + 2;
                 int if_condition_end_location = find_closing_paren(tokens, if_condition_start_location - 1) - 1;
-                printf("doing if3\n");                
                 AST_node* if_condition_node = create_expression_AST_node(node, tokens, if_condition_start_location, if_condition_end_location);
 
                 da_append(key_word_node->children, if_condition_node, AST_node*);
@@ -1013,19 +1005,15 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
                 else_node->token = ((token**)tokens->data)[i];
                 key_word* kw = malloc(sizeof(key_word));
                 kw->key_word_type = ELSE;
+                kw->name = ((token**)tokens->data)[i]->data;
                 kw->data = NULL;
                 else_node->data = kw;
 
                 da_append(if_node->children, else_node, AST_node*);
                 
                 if (((token**)tokens->data)[i + 1]->type == PAREN_CURLY_OPEN) {
-                    int else_condition_start_location = i + 2;
-                    int else_condition_end_location = find_closing_paren(tokens, else_condition_start_location - 1) - 1;
                     
-                    AST_node* else_condition_node = create_expression_AST_node(node, tokens, else_condition_start_location, else_condition_end_location);
-                    da_append(else_node->children, else_condition_node, AST_node*);
-
-                    int else_body_start_location = else_condition_end_location + 3;
+                    int else_body_start_location = i + 2;
                     if (((token**)tokens->data)[else_body_start_location - 1]->type != PAREN_CURLY_OPEN) {
                         fprintf(stderr, "%s:%d: error: Expected '{' after else condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[else_body_start_location - 1]->pos_in_file);
                     }
@@ -1034,7 +1022,6 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
                 
                     create_body_AST_node(scope, else_node, tokens, else_body_start_location, else_body_end_location);
                 
-                    da_append(node->children, else_node, AST_node*);
                 
                     i = else_body_end_location + 1;
                 }
