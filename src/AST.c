@@ -8,8 +8,6 @@ void init_AST_node(AST_node* node)
     node->children = node_da;
 }
 
-
-
 AST_node* get_node_from_pos_recursive(AST_node* node, int pos) {
     if (node->token->pos_in_file == pos) {
         return node;
@@ -69,10 +67,10 @@ bool is_varible_defined(AST_node* node, char* str) {
 }
 
 
-int find_opening_paren(dynamic_array* tokens, int starting_token_location)
+int get_opening_paren_location(dynamic_array* tokens, int starting_token_location)
 {
     if (((token**)tokens->data)[starting_token_location]->type != PAREN_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_CLOSE) {
-        fprintf(stderr, "%s:%d: error: input to find_opening_paren was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
+        fprintf(stderr, "%s:%d: error: input to get_opening_paren_location was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
     }
     int i = starting_token_location;
     int paren_count = 1;
@@ -114,10 +112,10 @@ int find_opening_paren(dynamic_array* tokens, int starting_token_location)
     return i;
 }
 
-int find_closing_paren(dynamic_array* tokens, int starting_token_location)
+int get_closing_paren_location(dynamic_array* tokens, int starting_token_location)
 {
     if (((token**)tokens->data)[starting_token_location]->type != PAREN_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_OPEN) {
-        fprintf(stderr, "%s:%d: error: input to find_closing_paren was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
+        fprintf(stderr, "%s:%d: error: input to get_closing_paren_location was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
     }
     
     int i = starting_token_location;
@@ -160,7 +158,7 @@ int find_closing_paren(dynamic_array* tokens, int starting_token_location)
     return i;
 }
 
-AST_node* get_main_function(dynamic_array* tokens)
+AST_node* create_main_function_node(dynamic_array* tokens)
 {
     AST_node* main_node = malloc(sizeof(AST_node));
 
@@ -239,14 +237,14 @@ AST_node* create_single_rvalue_node(AST_node* scope, dynamic_array* tokens, int 
     return node;
 }
 
-AST_node* create_expression_AST_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location)
+AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location)
 {
 
     for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
         for (int j = start_location; j < end_location; j++) {
             // Skip the things in parentheses
             if (((token**)tokens->data)[j]->type == PAREN_OPEN) {
-                j = find_closing_paren(tokens, j);
+                j = get_closing_paren_location(tokens, j);
             }
             // Go from lowest precedence to highest and create left/right nodes containing the left and right of the expression
             else if (token_is_operator(((token**)tokens->data)[j]) && ((token**)tokens->data)[j]->type == operator_mapping[i].type) {
@@ -262,11 +260,11 @@ AST_node* create_expression_AST_node(AST_node* scope, dynamic_array* tokens, int
 
                 int left_start = start_location;
                 int left_end = j - 1;
-                AST_node* left_node = create_expression_AST_node(scope, tokens, left_start, left_end);
+                AST_node* left_node = create_expression_node(scope, tokens, left_start, left_end);
 
                 int right_start = j + 1;
                 int right_end = end_location;
-                AST_node* right_node = create_expression_AST_node(scope, tokens, right_start, right_end);
+                AST_node* right_node = create_expression_node(scope, tokens, right_start, right_end);
                 
                 da_append(node->children, left_node, AST_node*);
                 da_append(node->children, right_node, AST_node*);
@@ -300,181 +298,205 @@ int generate_stack_posistions(AST_node* scope, int stack_size)
     
 }
 
+void create_varible_init_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    AST_node* assign_node = malloc(sizeof(AST_node));
+    init_AST_node(assign_node);
+            
+    assign_node->token = ((token**)tokens->data)[loc + 2];
+    assign_node->node_type = OPERATOR;
+            
+    operator* o = malloc(sizeof(operator));
+    o->type = ((token**)tokens->data)[loc + 2]->type;
+    o->name = ((token**)tokens->data)[loc + 2]->data;
+    assign_node->data = (void*)o;
+
+            
+    AST_node* varible_node = malloc(sizeof(AST_node));
+    init_AST_node(varible_node);
+            
+    varible_node->token = ((token**)tokens->data)[loc + 1];
+    varible_node->node_type = VARIBLE;
+
+    varible* v = malloc(sizeof(varible));
+    //v->type = get_type_from_str(types, ((token**)tokens->data)[i]->data);
+    v->name = ((token**)tokens->data)[loc + 1]->data;
+    varible_node->data = (void*)(v);
+
+    int rhs_end_location = find_semi_colon(tokens, loc) - 1;
+    AST_node* rvalue_node = create_expression_node(node, tokens, loc + 3, rhs_end_location);
+
+    da_append(assign_node->children, varible_node, AST_node*);
+    da_append(assign_node->children, rvalue_node, AST_node*);
+                                                                         
+    da_append(node->children, assign_node, AST_node*);
+}
+
+void create_modify_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    
+    if (!is_varible_defined(node, ((token**)tokens->data)[loc + 1]->data)) {
+        fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, ((token**)tokens->data)[loc + 1]->data, ((token**)tokens->data)[loc + 1]->pos_in_file);
+    }
+    AST_node* varible_node = get_varible_node_from_name(node, ((token**)tokens->data)[loc + 1]->data);
+    AST_node* assign_node = malloc(sizeof(AST_node));
+    init_AST_node(assign_node);
+            
+    assign_node->token = ((token**)tokens->data)[loc + 2];
+    assign_node->node_type = OPERATOR;
+            
+    operator* operator = malloc(sizeof(operator));
+    operator->type = ((token**)tokens->data)[loc + 2]->type;
+    operator->name = ((token**)tokens->data)[loc + 2]->data;
+    assign_node->data = (void*)(operator);
+        
+    int rhs_end_location = find_semi_colon(tokens, loc) - 1;
+    AST_node* rvalue_node = create_expression_node(node, tokens, loc + 3, rhs_end_location);
+            
+    da_append(assign_node->children, varible_node, AST_node*);
+    da_append(assign_node->children, rvalue_node, AST_node*);
+    da_append(node->children, assign_node, AST_node*);
+}
+
+void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    AST_node* key_word_node = malloc(sizeof(AST_node));
+    init_AST_node(key_word_node);
+
+    key_word_node->node_type = KEY_WORD;
+    key_word_node->token = ((token**)tokens->data)[loc];
+                
+    key_word* kw = malloc(sizeof(key_word));
+    kw->name = ((token**)tokens->data)[loc]->data;
+    kw->key_word_type = RETURN;
+    kw->data = NULL;
+    key_word_node->data = kw;
+
+    int return_end_location = find_semi_colon(tokens, loc) - 1;
+    AST_node* rvalue_node = create_expression_node(node, tokens, loc + 1, return_end_location);
+
+    da_append(key_word_node->children, rvalue_node, AST_node*);
+    da_append(node->children, key_word_node, AST_node*);
+}
+
+int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    AST_node* key_word_node = malloc(sizeof(AST_node));
+    init_AST_node(key_word_node);
+
+    key_word_node->node_type = KEY_WORD;
+    key_word_node->token = ((token**)tokens->data)[loc];
+    key_word* kw = malloc(sizeof(key_word));
+    kw->key_word_type = IF;
+    kw->name = ((token**)tokens->data)[loc]->data;
+    kw->data = NULL;
+    key_word_node->data = kw;
+
+    if (((token**)tokens->data)[loc + 1]->type != PAREN_OPEN) {
+        fprintf(stderr, "%s:%d: error: Expected '(' after if statement at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc]->pos_in_file);
+    }
+
+    int if_condition_start_location = loc + 2;
+    int if_condition_end_location = get_closing_paren_location(tokens, if_condition_start_location - 1) - 1;
+    AST_node* if_condition_node = create_expression_node(node, tokens, if_condition_start_location, if_condition_end_location);
+
+    da_append(key_word_node->children, if_condition_node, AST_node*);
+
+    int if_body_start_location = if_condition_end_location + 3;
+    if (((token**)tokens->data)[if_body_start_location - 1]->type != PAREN_CURLY_OPEN) {
+        fprintf(stderr, "%s:%d: error: Expected '{' after if condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[if_body_start_location - 1]->pos_in_file);
+    }
+    int if_body_end_location = get_closing_paren_location(tokens, if_body_start_location - 1) - 1;
+
+    create_body_AST_node(scope, key_word_node, tokens, if_body_start_location, if_body_end_location);
+
+    if (((token**)tokens->data)[loc - 1]->type == ELSE) {
+        AST_node* else_node = get_node_from_pos(node, ((token**)tokens->data)[loc - 1]->pos_in_file);
+        da_append(else_node->children, key_word_node, AST_node*);
+    } else {
+        da_append(node->children, key_word_node, AST_node*);
+    }
+                
+    return (if_body_end_location + 1);
+}
+
+int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    if (((token**)tokens->data)[loc - 1]->type != PAREN_CURLY_CLOSE) {
+        fprintf(stderr, "%s:%d: error: Expected '}' before else condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc - 1]->pos_in_file);
+    }
+    int if_location = get_opening_paren_location(tokens, get_opening_paren_location(tokens, loc - 1) - 1) - 1;
+    AST_node* if_node = get_node_from_pos(node, ((token**)tokens->data)[if_location]->pos_in_file);
+
+    AST_node* else_node = malloc(sizeof(AST_node));
+    init_AST_node(else_node);
+                
+    else_node->node_type = KEY_WORD;
+    else_node->token = ((token**)tokens->data)[loc];
+    key_word* kw = malloc(sizeof(key_word));
+    kw->key_word_type = ELSE;
+    kw->name = ((token**)tokens->data)[loc]->data;
+    kw->data = NULL;
+    else_node->data = kw;
+
+    da_append(if_node->children, else_node, AST_node*);
+                
+    if (((token**)tokens->data)[loc + 1]->type == PAREN_CURLY_OPEN) {
+                    
+        int else_body_start_location = loc + 2;
+        if (((token**)tokens->data)[else_body_start_location - 1]->type != PAREN_CURLY_OPEN) {
+            fprintf(stderr, "%s:%d: error: Expected '{' after else condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[else_body_start_location - 1]->pos_in_file);
+        }
+        int else_body_end_location = get_closing_paren_location(tokens, else_body_start_location - 1) - 1;
+        create_body_AST_node(scope, else_node, tokens, else_body_start_location, else_body_end_location);
+        return else_body_end_location + 1;
+    }
+    return loc;
+}
+
+int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    // TODO: add more key words
+    TOKEN_TYPE key_word_type = get_token_type_key_word(((token**)tokens->data)[loc]);
+    switch (key_word_type) {
+    case RETURN: {
+        create_return_node(scope, node, tokens, loc);
+        break;
+    }
+    case IF: {
+        loc = create_if_node(scope, node, tokens, loc);
+        break;
+    }
+    case ELSE: {
+        loc = create_else_node(scope, node, tokens, loc);
+        break;
+    }
+    default: {
+        fprintf(stderr, "%s:%d: TODO: Key word '%s' was not handled\n", __FILE__, __LINE__, ((token**)tokens->data)[loc]->data);
+        break;
+    }
+    }
+    return loc;
+}
+
 AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end)
 {
     for (int i = start; i < end; i++) {
         if (((token**)tokens->data)[i]->type == OTHER &&
             ((token**)tokens->data)[i + 1]->type == OTHER &&
             ((token**)tokens->data)[i + 2]->type == EQUALS) {
-            // Assignment
+            // Initalize varible
+            create_varible_init_node(scope, node, tokens, i);
             
-            AST_node* assign_node = malloc(sizeof(AST_node));
-            init_AST_node(assign_node);
-            
-            assign_node->token = ((token**)tokens->data)[i + 2];
-            assign_node->node_type = OPERATOR;
-            
-            operator* o = malloc(sizeof(operator));
-            o->type = ((token**)tokens->data)[i + 2]->type;
-            o->name = ((token**)tokens->data)[i + 2]->data;
-            assign_node->data = (void*)o;
-
-            
-            AST_node* varible_node = malloc(sizeof(AST_node));
-            init_AST_node(varible_node);
-            
-            varible_node->token = ((token**)tokens->data)[i + 1];
-            varible_node->node_type = VARIBLE;
-
-            varible* v = malloc(sizeof(varible));
-            //v->type = get_type_from_str(types, ((token**)tokens->data)[i]->data);
-            v->name = ((token**)tokens->data)[i + 1]->data;
-            varible_node->data = (void*)(v);
-
-            int rhs_end_location = find_semi_colon(tokens, i) - 1;
-            AST_node* rvalue_node = create_expression_AST_node(node, tokens, i + 3, rhs_end_location);
-
-            da_append(assign_node->children, varible_node, AST_node*);
-            da_append(assign_node->children, rvalue_node, AST_node*);
-                                                                         
-            da_append(node->children, assign_node, AST_node*);
-            
-            //printf("Varible of type %s and name %s was created with value %s\n", );
         } else if (((token**)tokens->data)[i + 0]->type == SEMICOLON &&
                    ((token**)tokens->data)[i + 1]->type == OTHER &&
                    ((token**)tokens->data)[i + 2]->type == EQUALS) {
+            // Modify varible
+            create_modify_varible_node(scope, node, tokens, i);
             
-            if (!is_varible_defined(node, ((token**)tokens->data)[i + 1]->data)) {
-                fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, ((token**)tokens->data)[i + 1]->data, ((token**)tokens->data)[i + 1]->pos_in_file);
-            }
-            AST_node* varible_node = get_varible_node_from_name(node, ((token**)tokens->data)[i + 1]->data);
-            AST_node* assign_node = malloc(sizeof(AST_node));
-            init_AST_node(assign_node);
-            
-            assign_node->token = ((token**)tokens->data)[i + 2];
-            assign_node->node_type = OPERATOR;
-            
-            operator* operator = malloc(sizeof(operator));
-            operator->type = ((token**)tokens->data)[i + 2]->type;
-            operator->name = ((token**)tokens->data)[i + 2]->data;
-            assign_node->data = (void*)(operator);
-        
-            int rhs_end_location = find_semi_colon(tokens, i) - 1;
-            AST_node* rvalue_node = create_expression_AST_node(node, tokens, i + 3, rhs_end_location);
-            
-            da_append(assign_node->children, varible_node, AST_node*);
-            da_append(assign_node->children, rvalue_node, AST_node*);
-            da_append(node->children, assign_node, AST_node*);
         } else if (token_is_key_word(((token**)tokens->data)[i])) {
-            // TODO: add more key words
-            TOKEN_TYPE key_word_type = get_token_type_key_word(((token**)tokens->data)[i]);
-            switch (key_word_type) {
-            case RETURN: {
-                AST_node* key_word_node = malloc(sizeof(AST_node));
-                init_AST_node(key_word_node);
-
-                key_word_node->node_type = KEY_WORD;
-                key_word_node->token = ((token**)tokens->data)[i];
-                
-                
-                key_word* kw = malloc(sizeof(key_word));
-                kw->name = ((token**)tokens->data)[i]->data;
-                kw->key_word_type = RETURN;
-                kw->data = NULL;
-                key_word_node->data = kw;
-
-                int return_end_location = find_semi_colon(tokens, i) - 1;
-                AST_node* rvalue_node = create_expression_AST_node(node, tokens, i + 1, return_end_location);
-
-                da_append(key_word_node->children, rvalue_node, AST_node*);
-                da_append(node->children, key_word_node, AST_node*);
-                break;
-            }
-            case IF: {
-                AST_node* key_word_node = malloc(sizeof(AST_node));
-                init_AST_node(key_word_node);
-
-                key_word_node->node_type = KEY_WORD;
-                key_word_node->token = ((token**)tokens->data)[i];
-                key_word* kw = malloc(sizeof(key_word));
-                kw->key_word_type = IF;
-                kw->name = ((token**)tokens->data)[i]->data;
-                kw->data = NULL;
-                key_word_node->data = kw;
-
-                if (((token**)tokens->data)[i + 1]->type != PAREN_OPEN) {
-                    fprintf(stderr, "%s:%d: error: Expected '(' after if statement at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[i]->pos_in_file);
-                }
-
-                int if_condition_start_location = i + 2;
-                int if_condition_end_location = find_closing_paren(tokens, if_condition_start_location - 1) - 1;
-                AST_node* if_condition_node = create_expression_AST_node(node, tokens, if_condition_start_location, if_condition_end_location);
-
-                da_append(key_word_node->children, if_condition_node, AST_node*);
-
-                int if_body_start_location = if_condition_end_location + 3;
-                if (((token**)tokens->data)[if_body_start_location - 1]->type != PAREN_CURLY_OPEN) {
-                    fprintf(stderr, "%s:%d: error: Expected '{' after if condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[if_body_start_location - 1]->pos_in_file);
-                }
-                int if_body_end_location = find_closing_paren(tokens, if_body_start_location - 1) - 1;
-
-                create_body_AST_node(scope, key_word_node, tokens, if_body_start_location, if_body_end_location);
-
-                if (((token**)tokens->data)[i - 1]->type == ELSE) {
-                    AST_node* else_node = get_node_from_pos(node, ((token**)tokens->data)[i - 1]->pos_in_file);
-                    da_append(else_node->children, key_word_node, AST_node*);
-                } else {
-                    da_append(node->children, key_word_node, AST_node*);
-                }
-                
-                i = if_body_end_location + 1;
-                break;
-            }
-            case ELSE: {
-                if (((token**)tokens->data)[i - 1]->type != PAREN_CURLY_CLOSE) {
-                    fprintf(stderr, "%s:%d: error: Expected '}' before else condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[i - 1]->pos_in_file);
-                }
-                int if_location = find_opening_paren(tokens, find_opening_paren(tokens, i - 1) - 1) - 1;
-                AST_node* if_node = get_node_from_pos(node, ((token**)tokens->data)[if_location]->pos_in_file);
-
-                AST_node* else_node = malloc(sizeof(AST_node));
-                init_AST_node(else_node);
-                
-                else_node->node_type = KEY_WORD;
-                else_node->token = ((token**)tokens->data)[i];
-                key_word* kw = malloc(sizeof(key_word));
-                kw->key_word_type = ELSE;
-                kw->name = ((token**)tokens->data)[i]->data;
-                kw->data = NULL;
-                else_node->data = kw;
-
-                da_append(if_node->children, else_node, AST_node*);
-                
-                if (((token**)tokens->data)[i + 1]->type == PAREN_CURLY_OPEN) {
-                    
-                    int else_body_start_location = i + 2;
-                    if (((token**)tokens->data)[else_body_start_location - 1]->type != PAREN_CURLY_OPEN) {
-                        fprintf(stderr, "%s:%d: error: Expected '{' after else condition at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[else_body_start_location - 1]->pos_in_file);
-                    }
-                    int else_body_end_location = find_closing_paren(tokens, else_body_start_location - 1) - 1;
-
-                
-                    create_body_AST_node(scope, else_node, tokens, else_body_start_location, else_body_end_location);
-                
-                
-                    i = else_body_end_location + 1;
-                }
-                
-                break;
-            }
+            i = create_key_word_node(scope, node, tokens, i);
             
-
-            default: {
-                fprintf(stderr, "%s:%d: TODO: Key word '%s' was not handled\n", __FILE__, __LINE__, ((token**)tokens->data)[i]->data);
-                i = end;
-                break;
-            }
-            }
         }
     }
     

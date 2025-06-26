@@ -1,36 +1,5 @@
 #include "tokenizer.h"
 
-void store_file(file* f, char* file_name)
-{
-    FILE *input_file;
-    
-    input_file = fopen(file_name, "r");
-
-    if (input_file == NULL) {
-        fprintf(stderr, "%s:%d: error: Unable to open file: %s\n", __FILE__, __LINE__, file_name);
-    }
-
-    // Get file size
-    fseek(input_file, 0L, SEEK_END);
-    int size = ftell(input_file);
-    rewind(input_file);
-
-    // Read file int file_data
-    char* file_data = malloc(sizeof(char)*size);
-    int i = 0;
-    int c = 1;
-    while((c = getc(input_file)) != EOF) {
-        file_data[i] = (unsigned char)c;
-        i++;
-    }
-    fclose(input_file);
-
-    f->size = size;
-    f->data = file_data;
-
-}
-
-
 bool token_is_type(token* t, dynamic_array ts) {
     for (int i = 0; i < ts.count; i++) {
         if (strcmp(((type*)ts.data)[i].string, t->data) == 0) {
@@ -177,10 +146,23 @@ bool is_token_end(char c)
     return (c == ' ' || c == '\n' || c == ';' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == EOF);
 }
 
-bool is_token(file* f, char* current_str, int* start_pos, int end_pos)
+bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
 {
     int len = end_pos - *start_pos;
-    if (is_token_end(f->data[end_pos]) || is_token_end(f->data[*start_pos])) {
+    if (fseek(f, end_pos, SEEK_SET) != 0) {
+        fprintf(stderr, "%s:%d: error: fseek failed\n", __FILE__, __LINE__);
+        return 1;
+    }
+    char c_end = getc(f);
+    rewind(f);
+    if (fseek(f, *start_pos, SEEK_SET) != 0) {
+        fprintf(stderr, "%s:%d: error: fseek failed\n", __FILE__, __LINE__);
+        return 1;
+    }
+    char c_start = getc(f);
+    rewind(f);
+
+    if (is_token_end(c_end) || is_token_end(c_start)) {
         *start_pos += len;
         return true;
     }
@@ -189,7 +171,7 @@ bool is_token(file* f, char* current_str, int* start_pos, int end_pos)
     return false;
 }
 
-token* get_next_token(file* f, int* start_pos)
+token* get_next_token(FILE* f, int* start_pos)
 {
     token* t = malloc(sizeof(token));    
     int end_pos = *start_pos + 1;
@@ -199,8 +181,8 @@ token* get_next_token(file* f, int* start_pos)
         int len = end_pos - *start_pos;
         
         char* current_str = malloc((len + 1)*sizeof(char));
-        
-        strncpy(current_str, f->data + *start_pos, len);
+        fseek(f, *start_pos, SEEK_SET);
+        fread(current_str, sizeof(char), len, f);
         current_str[len] = '\0';
 
         if (is_token(f, current_str, start_pos, end_pos)) {

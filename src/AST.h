@@ -65,12 +65,18 @@ AST_node* get_node_from_pos(AST_node* node, int pos);
 AST_node* get_varible_node_from_name_recursive(AST_node* node, char* name);
 AST_node* get_varible_node_from_name(AST_node* node, char* name);
 bool is_varible_defined(AST_node* node, char* str);
-int find_opening_paren(dynamic_array* tokens, int starting_token_location);
-int find_closing_paren(dynamic_array* tokens, int starting_token_location);
-AST_node* get_main_function(dynamic_array* tokens);
+int get_opening_paren_location(dynamic_array* tokens, int starting_token_location);
+int get_closing_paren_location(dynamic_array* tokens, int starting_token_location);
+AST_node* create_main_function_node(dynamic_array* tokens);
 AST_node* create_single_rvalue_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location);
-AST_node* create_expression_AST_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location);
+AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location);
 int generate_stack_posistions(AST_node* scope, int stack_size);
+void create_varible_init_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
+void create_modify_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
+void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
+int create_if_node(AST_node* scope, AST_node* n1ode, dynamic_array* tokens, int loc);
+int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
+int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
 AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end);
 
 #endif // AST_H

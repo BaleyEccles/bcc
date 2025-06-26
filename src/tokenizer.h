@@ -10,11 +10,6 @@
 #include "dynamic_array.h"
 
 typedef struct {
-    int size;
-    char* data;
-} file;
-
-typedef struct {
     char* string;
 } type;
 
@@ -125,7 +120,6 @@ typedef struct {
 int find_semi_colon(dynamic_array* tokens, int start_location);
 int get_token_location(dynamic_array* tokens, token* t);
 type* get_type_from_str(dynamic_array* types, char* str);
-void store_file(file* f, char* file_name);
 bool token_is_type(token* t, dynamic_array ts);
 bool token_is_parentheses(token* t);
 TOKEN_TYPE get_token_type_parentheses(token* t);
@@ -137,8 +131,8 @@ TOKEN_TYPE get_token_type_operator(token* t);
 bool token_is_semicolon(token* t);
 TOKEN_TYPE get_token_type(token* t, dynamic_array* ts);
 bool is_token_end(char c);
-bool is_token(file* f, char* current_str, int* start_pos, int end_pos);
-token* get_next_token(file* f, int* start_pos);
+bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos);
+token* get_next_token(FILE* f, int* start_pos);
 void remove_bad_chars(char* data);
 void clean_tokens(dynamic_array* tokens);
 

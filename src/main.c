@@ -227,19 +227,25 @@ void create_asm_file(FILE* file, AST_node* scope, AST_node* root)
 
 int main()
 {
-    char name[] = "./tests/if_statement/if_statement.c";
+    char input_name[] = "./tests/if_statement/if_statement.c";
     //char name[] = "./tests/test1/test1.c";
-    file f;
-    store_file(&f, name);
-    for (int i = 0; i < f.size; i++) {
-        printf("%c", f.data[i]);
+    FILE* input_file = fopen(input_name, "r");
+    
+    fseek(input_file, 0L, SEEK_END);
+    int input_file_size = ftell(input_file);
+    rewind(input_file);
+    
+    char c;
+    while((c = getc(input_file)) != EOF) {
+        printf("%c", c);
     }
+
     int pos = 0;
     dynamic_array tokens;
     da_init(&tokens, token*);
         
-    while (pos < f.size) {
-        token* t = get_next_token(&f, &pos);
+    while (pos < input_file_size) {
+        token* t = get_next_token(input_file, &pos);
         da_append(&tokens, t, token*);
     }
 
@@ -257,12 +263,12 @@ int main()
     
     // Generate AST
 
-    AST_node* main_node = get_main_function(&tokens);
+    AST_node* main_node = create_main_function_node(&tokens);
         
     int main_token_location = get_token_location(&tokens, main_node->token);
-    int main_inputs_token_end = find_closing_paren(&tokens, main_token_location + 1);
+    int main_inputs_token_end = get_closing_paren_location(&tokens, main_token_location + 1);
     int start = main_inputs_token_end + 2;
-    int end = find_closing_paren(&tokens, start - 1) - 1;
+    int end = get_closing_paren_location(&tokens, start - 1) - 1;
     
     main_node = create_body_AST_node(main_node, main_node, &tokens, start, end);
     generate_stack_posistions(main_node, 0);
@@ -275,7 +281,6 @@ int main()
     fclose(asm_file);
     
     asm_file = fopen("output.asm", "r");
-    char c;
     printf("\nAssembly file:\n\n");
     while ((c = getc(asm_file)) != EOF) {
         printf("%c", c);
