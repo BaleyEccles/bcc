@@ -80,13 +80,13 @@ typedef enum {
     LEFT_SHIFT,
     RIGHT_SHIFT,
     
-    BOOL_LESS_THAN,
-    BOOL_LESS_THAN_OR_EQUALS,
-    BOOL_GREATER_THAN,
-    BOOL_GREATER_THAN_OR_EQUALS,
+    LESS_THAN,
+    LESS_THAN_OR_EQUALS,
+    GREATER_THAN,
+    GREATER_THAN_OR_EQUALS,
     
-    BOOL_EQUALS,
-    BOOL_NOT_EQUALS,
+    LOGICAL_EQUALS,
+    NOT_EQUALS,
     
     BITWISE_AND,
     BITWISE_XOR,
@@ -163,13 +163,13 @@ static const mapping operator_mapping[] = {
     {"<<", LEFT_SHIFT},
     {">>", RIGHT_SHIFT},
 
-    {"<", BOOL_LESS_THAN},
-    {"<=", BOOL_LESS_THAN_OR_EQUALS},
-    {">", BOOL_GREATER_THAN},
-    {">=", BOOL_GREATER_THAN_OR_EQUALS},
+    {"<", LESS_THAN},
+    {"<=", LESS_THAN_OR_EQUALS},
+    {">", GREATER_THAN},
+    {">=", GREATER_THAN_OR_EQUALS},
 
-    {"==", BOOL_EQUALS},
-    {"!=", BOOL_NOT_EQUALS},
+    {"==", LOGICAL_EQUALS},
+    {"!=", NOT_EQUALS},
 
     {"&", BITWISE_AND},
 

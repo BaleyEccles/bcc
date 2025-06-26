@@ -2,20 +2,22 @@
 
 void add_nodes_to_graphviz_file(AST_node* node, FILE* f, int depth)
 {
-    depth++;
+    //depth++;
     if (depth > 15) {
         return;
     }
     for (int i = 0; i < node->children->count; i++) {
 
-        fprintf(f, "\"%s, %i\" -> \"%s, %i\"\n",
+        fprintf(f, "\"%s, %i, %i\" -> \"%s, %i, %i\"\n",
                 node->token->data,
                 node->token->pos_in_file,
+                depth,
                 ((AST_node**)(node->children->data))[i]->token->data,
-                ((AST_node**)(node->children->data))[i]->token->pos_in_file
+                ((AST_node**)(node->children->data))[i]->token->pos_in_file,
+                i
                 );
 
-        add_nodes_to_graphviz_file(((AST_node**)(node->children->data))[i], f, depth);
+        add_nodes_to_graphviz_file(((AST_node**)(node->children->data))[i], f, i);
     }
 }
 
