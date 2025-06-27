@@ -20,17 +20,13 @@ typedef enum {
     SEMICOLON,
     NUMBER,
     OTHER,
-     
-    //Parentheses
-    PAREN_OPEN,
+    PAREN_OPEN,     //Parentheses
     PAREN_CLOSE,
     PAREN_CURLY_OPEN,
     PAREN_CURLY_CLOSE,
     PAREN_SQUARE_OPEN,
     PAREN_SQUARE_CLOSE,
-
-    // Key Words
-    AUTO,
+    AUTO,     // Key Words
     BREAK,
     CASE,
     CONST,
@@ -56,15 +52,12 @@ typedef enum {
     UNION,
     VOLATILE,
     WHILE,
-
-    // Operations
-    POST_INCREMENT,
+    POST_INCREMENT,    // Operations
     POST_DECREMENT,
     UNARY_PLUS,
     UNARY_MINUS,
     LOGICAL_NOT,
     BITWISE_NOT,
-    
     TIMES,
     DIVIDE,
     MODULO,
@@ -120,7 +113,7 @@ typedef struct {
 int find_semi_colon(dynamic_array* tokens, int start_location);
 int get_token_location(dynamic_array* tokens, token* t);
 type* get_type_from_str(dynamic_array* types, char* str);
-bool token_is_type(token* t, dynamic_array ts);
+bool token_is_type(token* t, dynamic_array* ts);
 bool token_is_parentheses(token* t);
 TOKEN_TYPE get_token_type_parentheses(token* t);
 bool token_is_number(token* t);
@@ -130,7 +123,7 @@ bool token_is_operator(token* t);
 TOKEN_TYPE get_token_type_operator(token* t);
 bool token_is_semicolon(token* t);
 TOKEN_TYPE get_token_type(token* t, dynamic_array* ts);
-bool is_token_end(char c);
+bool is_token_end(char* str, char c_next);
 bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos);
 token* get_next_token(FILE* f, int* start_pos);
 void remove_bad_chars(char* data);

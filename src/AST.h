@@ -70,7 +70,7 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
 AST_node* create_main_function_node(dynamic_array* tokens);
 AST_node* create_single_rvalue_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location);
 AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start_location, int end_location);
-int generate_stack_posistions(AST_node* scope, int stack_size);
+int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
 void create_varible_init_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
 void create_modify_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);
 void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc);

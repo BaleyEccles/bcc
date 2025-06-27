@@ -241,13 +241,15 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
 {
 
     for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
-        for (int j = start_location; j < end_location; j++) {
+        for (int j = start_location; j < end_location + 1; j++) {
             // Skip the things in parentheses
+            
             if (((token**)tokens->data)[j]->type == PAREN_OPEN) {
                 j = get_closing_paren_location(tokens, j);
             }
             // Go from lowest precedence to highest and create left/right nodes containing the left and right of the expression
             else if (token_is_operator(((token**)tokens->data)[j]) && ((token**)tokens->data)[j]->type == operator_mapping[i].type) {
+
                 AST_node* node = malloc(sizeof(AST_node));
                 init_AST_node(node);
                 node->node_type = OPERATOR;
@@ -261,13 +263,15 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
                 int left_start = start_location;
                 int left_end = j - 1;
                 AST_node* left_node = create_expression_node(scope, tokens, left_start, left_end);
-
-                int right_start = j + 1;
-                int right_end = end_location;
-                AST_node* right_node = create_expression_node(scope, tokens, right_start, right_end);
-                
                 da_append(node->children, left_node, AST_node*);
-                da_append(node->children, right_node, AST_node*);
+                if (o->type == POST_INCREMENT || o->type == POST_DECREMENT) {
+                } else {
+                    int right_start = j + 1;
+                    int right_end = end_location;
+                    AST_node* right_node = create_expression_node(scope, tokens, right_start, right_end);
+                    da_append(node->children, right_node, AST_node*);
+                }
+                
                 return node;
             }
 
@@ -280,10 +284,10 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
     return create_single_rvalue_node(scope, tokens, start_location, end_location);
 }
 
-int generate_stack_posistions(AST_node* scope, int stack_size)
+int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
 {
-    for (int i = 0; i < scope->children->count; i++) {
-        AST_node* child = ((AST_node**)scope->children->data)[i];
+    for (int i = 0; i < node->children->count; i++) {
+        AST_node* child = ((AST_node**)node->children->data)[i];
         if (child->node_type == VARIBLE) {
             if (((varible*)child->data)->stack_pos == 0) {
                 // TOOD: Deal with different types / different sizes
@@ -291,7 +295,7 @@ int generate_stack_posistions(AST_node* scope, int stack_size)
                 ((varible*)child->data)->stack_pos = stack_size;
             }
         }
-        stack_size = generate_stack_posistions(child, stack_size);
+        stack_size = generate_stack_posistions(scope, child, stack_size);
     }
     
     return stack_size;
@@ -420,6 +424,7 @@ int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int l
     return (if_body_end_location + 1);
 }
 
+
 int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
 {
     if (((token**)tokens->data)[loc - 1]->type != PAREN_CURLY_CLOSE) {
@@ -454,6 +459,59 @@ int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int
     return loc;
 }
 
+int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
+{
+    if (((token**)tokens->data)[loc + 1]->type != PAREN_OPEN) {
+        fprintf(stderr, "%s:%d: error: Expected '(' after for loop start at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc - 1]->pos_in_file);
+    }
+    AST_node* for_node = malloc(sizeof(AST_node));
+    init_AST_node(for_node);
+    
+    for_node->node_type = KEY_WORD;
+    for_node->token = ((token**)tokens->data)[loc];
+    key_word* kw = malloc(sizeof(key_word));
+    kw->key_word_type = FOR;
+    kw->name = ((token**)tokens->data)[loc]->data;
+    kw->data = NULL;
+    for_node->data = kw;
+    da_append(node->children, for_node, AST_node*);
+    
+    int for_loop_end = get_closing_paren_location(tokens, loc + 1);
+    
+    int for_loop_prelude_start = loc + 2;
+    int for_loop_prelude_end = find_semi_colon(tokens, for_loop_prelude_start);
+    if (for_loop_end < for_loop_prelude_end) {
+        fprintf(stderr, "%s:%d: error: Failed to parse the for loop at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc - 1]->pos_in_file);
+    }
+    
+    create_body_AST_node(scope, for_node, tokens, for_loop_prelude_start, for_loop_prelude_end);
+    //da_append(for_node->children, prelude_node, AST_node*);
+    
+    int for_loop_condition_start = for_loop_prelude_end + 1;
+    int for_loop_condition_end = find_semi_colon(tokens, for_loop_condition_start);
+    if (for_loop_end < for_loop_condition_end) {
+        fprintf(stderr, "%s:%d: error: Failed to parse the for loop at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc - 1]->pos_in_file);
+    }
+    AST_node* condition_node = create_expression_node(scope, tokens, for_loop_condition_start, for_loop_condition_end - 1);
+    da_append(for_node->children, condition_node, AST_node*);
+    
+    int for_loop_epilogue_start = for_loop_condition_end + 1;
+    int for_loop_epilogue_end = for_loop_end - 1;
+    if (for_loop_end < for_loop_epilogue_end) {
+        fprintf(stderr, "%s:%d: error: Failed to parse the for loop at location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[loc - 1]->pos_in_file);
+        printf("l1 %i, l2 %i\n", for_loop_end , for_loop_epilogue_end);
+    }
+    AST_node* epilogue_node = create_expression_node(scope, tokens, for_loop_epilogue_start, for_loop_epilogue_end);
+    da_append(for_node->children, epilogue_node, AST_node*);
+
+    int for_loop_body_start = for_loop_epilogue_end + 2;
+    int for_loop_body_end = get_closing_paren_location(tokens, for_loop_body_start);
+    create_body_AST_node(scope, for_node, tokens, for_loop_body_start, for_loop_body_end);
+    
+    return (for_loop_body_end);
+}
+
+
 int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int loc)
 {
     // TODO: add more key words
@@ -471,6 +529,10 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
         loc = create_else_node(scope, node, tokens, loc);
         break;
     }
+    case FOR: {
+        loc = create_for_node(scope, node, tokens, loc);
+        break;
+    }
     default: {
         fprintf(stderr, "%s:%d: TODO: Key word '%s' was not handled\n", __FILE__, __LINE__, ((token**)tokens->data)[loc]->data);
         break;
@@ -478,6 +540,8 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
     }
     return loc;
 }
+
+
 
 AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end)
 {
@@ -487,17 +551,25 @@ AST_node* create_body_AST_node(AST_node* scope, AST_node* node, dynamic_array* t
             ((token**)tokens->data)[i + 2]->type == EQUALS) {
             // Initalize varible
             create_varible_init_node(scope, node, tokens, i);
-            
-        } else if (((token**)tokens->data)[i + 0]->type == SEMICOLON &&
+            i = find_semi_colon(tokens, i);
+        } else if (((token**)tokens->data)[i + 0]->type != OTHER &&
                    ((token**)tokens->data)[i + 1]->type == OTHER &&
                    ((token**)tokens->data)[i + 2]->type == EQUALS) {
             // Modify varible
             create_modify_varible_node(scope, node, tokens, i);
-            
+            i = find_semi_colon(tokens, i) - 1;
+
         } else if (token_is_key_word(((token**)tokens->data)[i])) {
             i = create_key_word_node(scope, node, tokens, i);
-            
+        } else if (((token**)tokens->data)[i + 0]->type != OTHER &&
+                   ((token**)tokens->data)[i + 1]->type == OTHER &&
+                   ((token**)tokens->data)[i + 2]->type != EQUALS) {
+            int end = find_semi_colon(tokens, i) - 1;
+            AST_node* n = create_expression_node(scope, tokens, i + 1, end);
+            da_append(node->children, n, AST_node*);
+            i = end;
         }
+
     }
     
     return node;

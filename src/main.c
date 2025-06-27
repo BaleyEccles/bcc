@@ -24,12 +24,10 @@ void generate_default_types(dynamic_array* ts)
     da_append(ts, type_float, type*);
 }
 
-
-
-
 int main()
 {
-    char input_name[] = "./tests/if_statement/if_statement.c";
+    char input_name[] = "./tests/for_loop/for_loop.c";
+    //char input_name[] = "./tests/if_statement/if_statement.c";
     //char name[] = "./tests/test1/test1.c";
     FILE* input_file = fopen(input_name, "r");
     
@@ -73,7 +71,7 @@ int main()
     int end = get_closing_paren_location(&tokens, start - 1) - 1;
     
     main_node = create_body_AST_node(main_node, main_node, &tokens, start, end);
-    generate_stack_posistions(main_node, 0);
+    generate_stack_posistions(main_node, main_node, 0);
     
 
     generate_graphviz_from_AST_node(main_node, "graph.gv");

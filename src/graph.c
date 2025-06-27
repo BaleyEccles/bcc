@@ -3,7 +3,7 @@
 void add_nodes_to_graphviz_file(AST_node* node, FILE* f, int depth)
 {
     //depth++;
-    if (depth > 15) {
+    if (depth > 10) {
         return;
     }
     for (int i = 0; i < node->children->count; i++) {

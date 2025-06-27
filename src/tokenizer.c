@@ -1,8 +1,8 @@
 #include "tokenizer.h"
 
-bool token_is_type(token* t, dynamic_array ts) {
-    for (int i = 0; i < ts.count; i++) {
-        if (strcmp(((type*)ts.data)[i].string, t->data) == 0) {
+bool token_is_type(token* t, dynamic_array* ts) {
+    for (int i = 0; i < ts->count; i++) {
+        if (strcmp(((type*)ts->data)[i].string, t->data) == 0) {
             return true;
         }
     }
@@ -91,11 +91,6 @@ bool token_is_key_word(token* t) {
     return false;
 }
 
-
-
-
-
-
 bool token_is_operator(token* t)
 {
     for (int i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
@@ -124,26 +119,56 @@ bool token_is_semicolon(token* t)
 
 TOKEN_TYPE get_token_type(token* t, dynamic_array* ts)
 {
-    if (token_is_type(t, *ts)) {
+    if (token_is_type(t, ts)) {
         return TYPE;
     } else if (token_is_parentheses(t)) {
         return get_token_type_parentheses(t);
+    } else if (token_is_operator(t)) {
+        return get_token_type_operator(t);
     } else if (token_is_semicolon(t)) {
         return SEMICOLON;
     } else if (token_is_number(t)) {
         return NUMBER;
     } else if (token_is_key_word(t)) {
         return get_token_type_key_word(t);
-    } else if (token_is_operator(t)) {
-        return get_token_type_operator(t);
-    }
+    } 
     return OTHER;
 }
 
 
-bool is_token_end(char c)
+bool is_token_end(char* str, char c_next)
 {
-    return (c == ' ' || c == '\n' || c == ';' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == EOF);
+    int size = strlen(str);
+    char c_start = str[0];
+    bool is_end =
+        c_next == ' '  ||
+        c_next == '\n' ||
+        c_next == ';'  ||
+        c_next == '}'  ||
+        c_next == '('  ||
+        c_next == ')'  ||
+        c_next == '['  ||
+        c_next == ']'  ||
+        c_next == '{'  ||
+        c_next == '}'  ||
+        c_next == EOF;
+    is_end =
+        (c_start == ' '  ||
+         c_start == '\n' ||
+         c_start == ';'  ||
+         c_start == '}'  ||
+         c_start == '('  ||
+         c_start == ')'  ||
+         c_start == '['  ||
+         c_start == ']'  ||
+         c_start == '{'  ||
+         c_start == '}'  ||
+         c_start == EOF) ||
+        is_end;
+    if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
+        is_end = true;
+    }
+    return is_end;
 }
 
 bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
@@ -153,16 +178,11 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
         fprintf(stderr, "%s:%d: error: fseek failed\n", __FILE__, __LINE__);
         return 1;
     }
-    char c_end = getc(f);
-    rewind(f);
-    if (fseek(f, *start_pos, SEEK_SET) != 0) {
-        fprintf(stderr, "%s:%d: error: fseek failed\n", __FILE__, __LINE__);
-        return 1;
-    }
-    char c_start = getc(f);
+    char c_next = getc(f);
     rewind(f);
 
-    if (is_token_end(c_end) || is_token_end(c_start)) {
+    if (is_token_end(current_str, c_next)) {
+        
         *start_pos += len;
         return true;
     }
@@ -213,7 +233,7 @@ void remove_bad_chars(char* data)
     }
 
 }
-    
+
 void clean_tokens(dynamic_array* tokens)
 {
     for (int i = 0; i < tokens->count; i++) {
@@ -229,6 +249,7 @@ void clean_tokens(dynamic_array* tokens)
         }
     }
 }
+
 
 type* get_type_from_str(dynamic_array* types, char* str)
 {

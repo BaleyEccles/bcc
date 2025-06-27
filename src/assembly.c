@@ -31,6 +31,17 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
             }
             break;
         }
+        case POST_INCREMENT: {
+            if (child1->node_type == CONSTANT) {
+                fprintf(file, "    movl $%s, %%eax\n", ((constant*)child1->data)->value);
+                fprintf(file, "    addl $1, %%eax\n");
+            } else {
+                fprintf(file, "    movl -%i(%%rbp), %%eax\n", ((varible*)child1->data)->stack_pos);
+                fprintf(file, "    addl $1, %%eax\n");
+                fprintf(file, "    movl %%eax, -%i(%%rbp)\n", ((varible*)child1->data)->stack_pos);
+            }
+            break;
+        }
         case GREATER_THAN: {
             generate_rvalue_asm(file, scope, child1);
             fprintf(file, "    movl %%eax, %%esi\n");
@@ -140,9 +151,21 @@ void generate_if_asm(FILE* file, AST_node* scope, AST_node* node)
     
 }
 
+void generate_for_asm(FILE* file, AST_node* scope, AST_node* node)
+{
+    generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[0]);
+    fprintf(file, ".start_%s_%i:\n", node->token->data, node->token->pos_in_file);
+    generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[3]);
+    generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[2]);
+    generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[1]);
+    fprintf(file, ".start_%s_%i\n", node->token->data, node->token->pos_in_file);
+    fprintf(file, "    jmp .end_%s_%i\n", node->token->data, node->token->pos_in_file);
+    fprintf(file, ".end_%s_%i:\n", node->token->data, node->token->pos_in_file);
+}
+
 void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 {
-    if (node->node_type == OPERATOR) {
+    if (node->node_type == OPERATOR && ((operator*)node->data)->type == EQUALS) {
         generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[1]);
         fprintf(file, "    movl %%eax, -%i(%%rbp)\n", ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
         fprintf(file, "\n");
@@ -173,11 +196,17 @@ void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
             generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[0]);
             break;
         }
+        case FOR: {
+            generate_for_asm(file, scope, node);
+            break;
+        }
         default: {
             fprintf(stderr, "%s:%d: TODO: Key word '%s' was not handled\n", __FILE__, __LINE__, kw->name);
             break;
         }
         }
+    } else if (node->node_type == OPERATOR) {
+        generate_rvalue_asm(file, scope, node);
     }
 
 }
