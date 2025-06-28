@@ -422,6 +422,32 @@ int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, toke
     return block_end;
 }
 
+int create_while_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+{
+    AST_node* while_node = malloc(sizeof(AST_node));
+    init_AST_node(while_node);
+    
+    while_node->node_type = KEY_WORD;
+    while_node->token = t;
+
+    key_word* kw = malloc(sizeof(key_word));
+    kw->name = t->data;
+    kw->key_word_type = WHILE;
+    kw->data = NULL;
+    while_node->data = kw;
+    da_append(node->children, while_node, AST_node*);
+
+    int expression_start = get_token_location(tokens, t) + 1;
+    int expression_end = get_closing_paren_location(tokens, expression_start);
+    AST_node* while_expression_node = create_expression_node(scope, tokens, expression_start, expression_end);
+    da_append(while_node->children, while_expression_node, AST_node*);
+
+    int block_start = expression_end + 1;
+    int block_end = get_closing_paren_location(tokens, block_start);
+    generate_AST(scope, while_node, tokens, block_start, block_end);
+    return block_end;
+}
+
 
 int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
 {
@@ -435,12 +461,14 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
         return create_if_node(scope, node, tokens, t);
         break;
     }
-
     case FOR: {
         return create_for_node(scope, node, tokens, t);
         break;
     }
-
+    case WHILE: {
+        return create_while_node(scope, node, tokens, t);
+        break;
+    }
     default: {
         fprintf(stderr, "%s:%d: TODO: Key word %s %i was not handled\n", __FILE__, __LINE__, t->data, t->pos_in_file);
         break;

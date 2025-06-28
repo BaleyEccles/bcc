@@ -163,6 +163,16 @@ void generate_for_asm(FILE* file, AST_node* scope, AST_node* node)
     fprintf(file, ".end_%s_%i:\n", node->token->data, node->token->pos_in_file);
 }
 
+void generate_while_asm(FILE* file, AST_node* scope, AST_node* node)
+{
+    fprintf(file, ".start_%s_%i:\n", node->token->data, node->token->pos_in_file);
+    generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[1]);
+    generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[0]);
+    fprintf(file, ".start_%s_%i\n", node->token->data, node->token->pos_in_file);
+    fprintf(file, "    jmp .end_%s_%i\n", node->token->data, node->token->pos_in_file);
+    fprintf(file, ".end_%s_%i:\n", node->token->data, node->token->pos_in_file);
+}
+
 void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 {
     if (node->node_type == OPERATOR && ((operator*)node->data)->type == EQUALS) {
@@ -198,6 +208,10 @@ void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
         }
         case FOR: {
             generate_for_asm(file, scope, node);
+            break;
+        }
+        case WHILE: {
+            generate_while_asm(file, scope, node);
             break;
         }
         default: {
