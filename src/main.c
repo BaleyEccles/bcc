@@ -28,7 +28,7 @@ int main()
 {
     char input_name[] = "./tests/for_loop/for_loop.c";
     //char input_name[] = "./tests/if_statement/if_statement.c";
-    //char name[] = "./tests/test1/test1.c";
+    //char input_name[] = "./tests/test1/test1.c";
     FILE* input_file = fopen(input_name, "r");
     
     fseek(input_file, 0L, SEEK_END);
@@ -63,17 +63,18 @@ int main()
     
     // Generate AST
 
-    AST_node* main_node = create_main_function_node(&tokens);
+    // TODO: deal with when the main function is not first and stuff
+    AST_node* main_node = create_function_node(&tokens, 0);
         
     int main_token_location = get_token_location(&tokens, main_node->token);
     int main_inputs_token_end = get_closing_paren_location(&tokens, main_token_location + 1);
-    int start = main_inputs_token_end + 2;
-    int end = get_closing_paren_location(&tokens, start - 1) - 1;
-    
-    main_node = create_body_AST_node(main_node, main_node, &tokens, start, end);
+    int start = main_inputs_token_end + 1;
+    int end = get_closing_paren_location(&tokens, start) ;
+
+    generate_AST(main_node, main_node, &tokens, start, end);
     generate_stack_posistions(main_node, main_node, 0);
     
-
+    
     generate_graphviz_from_AST_node(main_node, "graph.gv");
     
     FILE* asm_file = fopen("output.asm", "w");
@@ -85,6 +86,6 @@ int main()
     while ((c = getc(asm_file)) != EOF) {
         printf("%c", c);
     }
-
+    
     return 0;
 }
