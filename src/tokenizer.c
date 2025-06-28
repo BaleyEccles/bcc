@@ -18,6 +18,99 @@ static const mapping parentheses_mapping[] = {
     {"]", PAREN_SQUARE_CLOSE},
 };
 
+
+int get_opening_paren_location(dynamic_array* tokens, int starting_token_location)
+{
+    if (((token**)tokens->data)[starting_token_location]->type != PAREN_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_CLOSE) {
+        fprintf(stderr, "%s:%d: error: input to get_opening_paren_location was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
+    }
+    int i = starting_token_location;
+    int paren_count = 1;
+    TOKEN_TYPE token_type = ((token**)tokens->data)[starting_token_location]->type;
+    while (paren_count != 0) {
+        i--;
+        if (i < 0) {
+            fprintf(stderr, "%s:%d: error: Unable to find closing paren for %s, at index %i and location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
+        }
+        switch (token_type) {
+        case PAREN_CLOSE: {
+            if (((token**)tokens->data)[i]->type == PAREN_CLOSE) {
+                paren_count++;
+            } else if (((token**)tokens->data)[i]->type == PAREN_OPEN) {
+                paren_count--;
+            }
+            break;
+        }
+        case PAREN_CURLY_CLOSE: {
+            if (((token**)tokens->data)[i]->type == PAREN_CURLY_CLOSE) {
+                paren_count++;
+            } else if (((token**)tokens->data)[i]->type == PAREN_CURLY_OPEN) {
+                paren_count--;
+            }
+            break;
+        }
+        case PAREN_SQUARE_CLOSE: {
+            if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_CLOSE) {
+                paren_count++;
+            } else if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_OPEN) {
+                paren_count--;
+            }
+            break;
+        }
+        default: {}
+        }
+
+    }
+    return i;
+}
+
+int get_closing_paren_location(dynamic_array* tokens, int starting_token_location)
+{
+    if (((token**)tokens->data)[starting_token_location]->type != PAREN_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_OPEN) {
+        fprintf(stderr, "%s:%d: error: input to get_closing_paren_location was not an opening parenthese, it was %s at %i with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->pos_in_file, ((token**)tokens->data)[starting_token_location]->type);
+    }
+    
+    int i = starting_token_location;
+    int paren_count = 1;
+    TOKEN_TYPE token_type = ((token**)tokens->data)[starting_token_location]->type;
+    while (paren_count != 0) {
+        i++;
+        if (i >= tokens->count) {
+            fprintf(stderr, "%s:%d: error: Unable to find closing paren for %s, at index %i and location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
+        }
+        switch (token_type) {
+        case PAREN_OPEN: {
+            if (((token**)tokens->data)[i]->type == PAREN_CLOSE) {
+                paren_count--;
+            } else if (((token**)tokens->data)[i]->type == PAREN_OPEN) {
+                paren_count++;
+            }
+            break;
+        }
+        case PAREN_CURLY_OPEN: {
+            if (((token**)tokens->data)[i]->type == PAREN_CURLY_CLOSE) {
+                paren_count--;
+            } else if (((token**)tokens->data)[i]->type == PAREN_CURLY_OPEN) {
+                paren_count++;
+            }
+            break;
+        }
+        case PAREN_SQUARE_OPEN: {
+            if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_CLOSE) {
+                paren_count--;
+            } else if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_OPEN) {
+                paren_count++;
+            }
+            break;
+        }
+        default: {}
+        }
+
+    }
+    return i;
+}
+
+
 bool token_is_parentheses(token* t) {
     for (int i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
         if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
@@ -151,6 +244,7 @@ bool is_token_end(char* str, char c_next)
         c_next == ']'  ||
         c_next == '{'  ||
         c_next == '}'  ||
+        c_next == ','  ||
         c_next == EOF;
     is_end =
         (c_start == ' '  ||
@@ -163,6 +257,7 @@ bool is_token_end(char* str, char c_next)
          c_start == ']'  ||
          c_start == '{'  ||
          c_start == '}'  ||
+         c_start == ','  ||
          c_start == EOF) ||
         is_end;
     if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
@@ -285,3 +380,15 @@ int find_semi_colon(dynamic_array* tokens, int start_location)
     return -1;
 }
 
+int find_comma(dynamic_array* tokens, int start, int end)
+{
+    for (int i = start; i < end + 1; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (token_is_parentheses(t)) {
+            i = get_closing_paren_location(tokens, i);
+        } else if (strcmp(t->data, ",") == 0) {
+            return i;
+        }
+    }
+    return end;
+}

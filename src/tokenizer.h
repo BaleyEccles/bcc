@@ -110,6 +110,7 @@ typedef struct {
     TOKEN_TYPE type;
 } mapping;
 
+int find_comma(dynamic_array* tokens, int start, int end);
 int find_semi_colon(dynamic_array* tokens, int start_location);
 int get_token_location(dynamic_array* tokens, token* t);
 type* get_type_from_str(dynamic_array* types, char* str);

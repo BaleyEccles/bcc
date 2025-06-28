@@ -11,10 +11,10 @@ void add_nodes_to_graphviz_file(AST_node* node, FILE* f, int depth)
         fprintf(f, "\"%s, %i, %i\" -> \"%s, %i, %i\"\n",
                 node->token->data,
                 node->token->pos_in_file,
-                depth,
+                node->node_type,
                 ((AST_node**)(node->children->data))[i]->token->data,
                 ((AST_node**)(node->children->data))[i]->token->pos_in_file,
-                i
+                ((AST_node**)(node->children->data))[i]->node_type
                 );
 
         add_nodes_to_graphviz_file(((AST_node**)(node->children->data))[i], f, i);

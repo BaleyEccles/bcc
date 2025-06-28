@@ -26,7 +26,8 @@ void generate_default_types(dynamic_array* ts)
 
 int main()
 {
-    char input_name[] = "./tests/while_loop/while_loop.c";
+    char input_name[] = "./tests/function/function.c";
+    //char input_name[] = "./tests/while_loop/while_loop.c";
     //char input_name[] = "./tests/for_loop/for_loop.c";
     //char input_name[] = "./tests/if_statement/if_statement.c";
     //char input_name[] = "./tests/test1/test1.c";
@@ -63,23 +64,29 @@ int main()
 
     
     // Generate AST
-
+    
     // TODO: deal with when the main function is not first and stuff
-    AST_node* main_node = create_function_node(&tokens, 0);
-        
-    int main_token_location = get_token_location(&tokens, main_node->token);
-    int main_inputs_token_end = get_closing_paren_location(&tokens, main_token_location + 1);
-    int start = main_inputs_token_end + 1;
-    int end = get_closing_paren_location(&tokens, start) ;
 
-    generate_AST(main_node, main_node, &tokens, start, end);
-    generate_stack_posistions(main_node, main_node, 0);
+    dynamic_array functions;
+    da_init(&functions, AST_node*);
     
-    
-    generate_graphviz_from_AST_node(main_node, "graph.gv");
+    generate_functions(&functions, &tokens);
+
+    for (int i = 0; i < functions.count; i++) {
+        AST_node* f = ((AST_node**)functions.data)[i];
+        char* graph_name = malloc(sizeof(char)*9 + sizeof(char)*strlen(((function*)f->data)->name));
+        sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
+        generate_graphviz_from_AST_node(f, graph_name);
+    }
+
+    for (int i = 0; i < functions.count; i++) {
+        AST_node* f = ((AST_node**)functions.data)[i];
+        generate_stack_posistions(f, f, 0);
+    }
     
     FILE* asm_file = fopen("output.asm", "w");
-    create_asm_file(asm_file, main_node, main_node);
+    create_asm_file(asm_file, &functions);
+
     fclose(asm_file);
     
     asm_file = fopen("output.asm", "r");

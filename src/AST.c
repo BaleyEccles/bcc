@@ -56,9 +56,18 @@ AST_node* get_node_from_name(AST_node* node, char* name) {
 
 bool is_varible_defined(AST_node* node, char* str) {
     if (node->node_type == VARIBLE) {
-        if (strcmp(((varible*)node->data)->name, str) == 0) {
+        char* varible_name = ((varible*)node->data)->name;
+        if (strcmp(varible_name, str) == 0) {
             return true;
         }
+    }
+    if (node->node_type == FUNCTION_INPUT) {
+        for (int i = 0; i < node->children->count; i++) {
+            char* input_name = ((varible*)(((AST_node**)node->children->data)[i]->data))->name;
+            if (strcmp(input_name, str) == 0) {
+                return true;
+            }   
+        }            
     }
     for (int i = 0; i < node->children->count; i++) {
         // TODO: scope stuff
@@ -70,97 +79,6 @@ bool is_varible_defined(AST_node* node, char* str) {
     return false;
 }
 
-
-int get_opening_paren_location(dynamic_array* tokens, int starting_token_location)
-{
-    if (((token**)tokens->data)[starting_token_location]->type != PAREN_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_CLOSE && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_CLOSE) {
-        fprintf(stderr, "%s:%d: error: input to get_opening_paren_location was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
-    }
-    int i = starting_token_location;
-    int paren_count = 1;
-    TOKEN_TYPE token_type = ((token**)tokens->data)[starting_token_location]->type;
-    while (paren_count != 0) {
-        i--;
-        if (i < 0) {
-            fprintf(stderr, "%s:%d: error: Unable to find closing paren for %s, at index %i and location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
-        }
-        switch (token_type) {
-        case PAREN_CLOSE: {
-            if (((token**)tokens->data)[i]->type == PAREN_CLOSE) {
-                paren_count++;
-            } else if (((token**)tokens->data)[i]->type == PAREN_OPEN) {
-                paren_count--;
-            }
-            break;
-        }
-        case PAREN_CURLY_CLOSE: {
-            if (((token**)tokens->data)[i]->type == PAREN_CURLY_CLOSE) {
-                paren_count++;
-            } else if (((token**)tokens->data)[i]->type == PAREN_CURLY_OPEN) {
-                paren_count--;
-            }
-            break;
-        }
-        case PAREN_SQUARE_CLOSE: {
-            if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_CLOSE) {
-                paren_count++;
-            } else if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_OPEN) {
-                paren_count--;
-            }
-            break;
-        }
-        default: {}
-        }
-
-    }
-    return i;
-}
-
-int get_closing_paren_location(dynamic_array* tokens, int starting_token_location)
-{
-    if (((token**)tokens->data)[starting_token_location]->type != PAREN_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_OPEN) {
-        fprintf(stderr, "%s:%d: error: input to get_closing_paren_location was not a parenthese, it was %s with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->type);
-    }
-    
-    int i = starting_token_location;
-    int paren_count = 1;
-    TOKEN_TYPE token_type = ((token**)tokens->data)[starting_token_location]->type;
-    while (paren_count != 0) {
-        i++;
-        if (i >= tokens->count) {
-            fprintf(stderr, "%s:%d: error: Unable to find closing paren for %s, at index %i and location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
-        }
-        switch (token_type) {
-        case PAREN_OPEN: {
-            if (((token**)tokens->data)[i]->type == PAREN_CLOSE) {
-                paren_count--;
-            } else if (((token**)tokens->data)[i]->type == PAREN_OPEN) {
-                paren_count++;
-            }
-            break;
-        }
-        case PAREN_CURLY_OPEN: {
-            if (((token**)tokens->data)[i]->type == PAREN_CURLY_CLOSE) {
-                paren_count--;
-            } else if (((token**)tokens->data)[i]->type == PAREN_CURLY_OPEN) {
-                paren_count++;
-            }
-            break;
-        }
-        case PAREN_SQUARE_OPEN: {
-            if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_CLOSE) {
-                paren_count--;
-            } else if (((token**)tokens->data)[ + i]->type == PAREN_SQUARE_OPEN) {
-                paren_count++;
-            }
-            break;
-        }
-        default: {}
-        }
-
-    }
-    return i;
-}
 
 AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start, int end)
 {
@@ -188,7 +106,7 @@ AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start
         if (!is_varible_defined(scope, t->data)) {
             fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, t->data, t->pos_in_file);
         }
-        node = get_node_from_name(scope, t->data);
+        //node = get_node_from_name(scope, t->data);
         // TODO: For now we assume that it is a varible, if not a number
         node->node_type = VARIBLE;
         node->token = t;
@@ -204,6 +122,41 @@ AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start
 
 }
 
+void generate_function_call_inputs(AST_node* scope, AST_node* function_node, dynamic_array* tokens, int start, int end)
+{
+    start++;
+    end--;
+
+    // add(add(a, 2), 3);
+    for (int i = start; i < end + 1; i++) {
+        int end_arg = find_comma(tokens, i, end);
+        AST_node* node = create_expression_node(scope, tokens, i, end_arg);
+        da_append(function_node->children, node, AST_node*);
+        i = end_arg;
+    }
+}
+
+AST_node* create_function_call_node(AST_node* scope, dynamic_array* tokens, int start, int end)
+{
+    // add(a, b)
+    // [add] [(] [a] [,] [b] [)]
+    //  ^start                ^end
+    AST_node* function_call_node = malloc(sizeof(AST_node));
+    init_AST_node(function_call_node);
+    function_call_node->node_type = FUNCTION_CALL;
+    function_call_node->token = ((token**)tokens->data)[start];
+
+    function_call* fc = malloc(sizeof(function));
+    // TODO: type stuff
+    //fc->return_type = 
+    fc->name = function_call_node->token->data;
+    function_call_node->data = (void*)fc;
+
+    generate_function_call_inputs(scope, function_call_node, tokens, start + 1, end);
+    return function_call_node;
+    
+}
+
 AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start, int end)
 {
 
@@ -215,13 +168,11 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
         end--;
     }
 
-
     for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
         for (int j = start; j < end + 1; j++) {
 
             // Skip the things in parentheses
             if (((token**)tokens->data)[j]->type == PAREN_OPEN) {
-                printf("calling get_closing_paren_location %s\n", ((token**)tokens->data)[j]->data);
                 j = get_closing_paren_location(tokens, j);
             }
             // Go from lowest precedence to highest and create left/right nodes containing the left and right of the expression
@@ -230,7 +181,6 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
                 init_AST_node(node);
                 node->node_type = OPERATOR;
                 node->token = ((token**)tokens->data)[j];
-
                 operator* o = malloc(sizeof(operator));
                 o->type = node->token->type;
                 o->name = node->token->data;
@@ -253,6 +203,18 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
             }
         }
     }
+
+        // Check for function calls
+    for (int i = start; i < end + 1; i++) {
+        if (((token**)tokens->data)[i + 0]->type == OTHER &&
+            ((token**)tokens->data)[i + 1]->type == PAREN_OPEN) {
+            int function_call_start = i;
+            int function_call_end = get_closing_paren_location(tokens, i + 1);
+            return create_function_call_node(scope, tokens, function_call_start, function_call_end);
+            
+        }
+    }
+
     // There are no operators in the currnet token list
     // We have reached a constant number, string, char, etc. Now we must make and return it.
     //printf("start loc: %i, end loc: %i\n", start, end);
@@ -549,6 +511,27 @@ void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int st
     
 }
 
+void generate_function_inputs(dynamic_array* tokens, AST_node* node, int start, int end)
+{
+    start++;
+    end--;
+
+    for (int i = start; i < end + 1; i += 3) {
+        AST_node* fi = malloc(sizeof(AST_node));
+        init_AST_node(fi);
+        
+        fi->token = ((token**)tokens->data)[i + 1];
+        fi->node_type = VARIBLE;
+            
+        varible* varible = malloc(sizeof(varible));
+        // TODO: types
+        varible->name = ((token**)tokens->data)[i + 1]->data;
+        fi->data = (void*)varible;
+        
+        da_append(node->children, fi, AST_node*);
+    }
+}
+
 AST_node* create_function_node(dynamic_array* tokens, int location) {
     // int foo(int a, float b)
     // ^location
@@ -558,17 +541,69 @@ AST_node* create_function_node(dynamic_array* tokens, int location) {
     AST_node* function_node = malloc(sizeof(AST_node));
     init_AST_node(function_node);
     function* f = malloc(sizeof(function));
-    // TODO: Better type stuff
+    // TODO: type stuff
     //main_function->return_type = get_type_from_str(((token**)tokens->data)[location]->data);
     f->name = function_name->data;
-    // TODO: parse function inputs
-
+    
     function_node->token = function_name;
     function_node->node_type = FUNCTION;
     function_node->data = (void*)f;
+
+    int inputs_start = location + 2;
+    int inputs_end = get_closing_paren_location(tokens, inputs_start);
+    
+    AST_node* function_inputs_node = malloc(sizeof(AST_node));
+    init_AST_node(function_inputs_node);
+    function_inputs_node->node_type = FUNCTION_INPUT;
+    function_inputs_node->token = function_name;
+    
+    generate_function_inputs(tokens, function_inputs_node, inputs_start, inputs_end);
+    da_append(function_node->children, function_inputs_node, AST_node*);
+    
     
     return function_node;
     
+}
+
+void generate_functions(dynamic_array* functions, dynamic_array* tokens)
+{
+    dynamic_array token_stack;
+    da_init(&token_stack, token);
+    for (int i = 0; i < tokens->count; i++) {
+        da_append(&token_stack, ((token**)tokens->data)[i], token*);
+        if (token_stack.count == 3) {
+            token* t1 = ((token**)token_stack.data)[0];
+            token* t2 = ((token**)token_stack.data)[1];
+            token* t3 = ((token**)token_stack.data)[2];
+            if (t1->type == OTHER && t2->type == OTHER && t3->type == PAREN_OPEN) {
+                int function_location = get_token_location(tokens, t1);
+                AST_node* function_node = create_function_node(tokens, function_location);
+                da_append(functions, function_node, AST_node*);
+
+                int function_start = get_closing_paren_location(tokens, get_token_location(tokens, t3)) + 1;
+                int function_end = get_closing_paren_location(tokens, function_start) ;
+                generate_AST(function_node, function_node, tokens, function_start, function_end);
+                
+                i = function_end;
+                token_stack.count = 0;
+
+            }
+        }
+    }
+
+}
+
+void update_varible_stack_posistion(AST_node* node, char* varible_name, int stack_pos)
+{
+    if (node->node_type == VARIBLE) {
+        if (strcmp(((varible*)node->data)->name, varible_name) == 0) {
+            ((varible*)node->data)->stack_pos = stack_pos;
+        }
+    }
+    for (int i = 0; i < node->children->count; i++) {
+        AST_node* child = ((AST_node**)node->children->data)[i];
+        update_varible_stack_posistion(child, varible_name, stack_pos);
+    }
 }
 
 int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
@@ -579,7 +614,7 @@ int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
             if (((varible*)child->data)->stack_pos == 0) {
                 // TOOD: Deal with different types / different sizes
                 stack_size += 4;
-                ((varible*)child->data)->stack_pos = stack_size;
+                update_varible_stack_posistion(scope, ((varible*)child->data)->name, stack_size);
             }
         }
         stack_size = generate_stack_posistions(scope, child, stack_size);

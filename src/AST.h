@@ -12,6 +12,8 @@
 typedef enum {
     NONE = 0,
     FUNCTION,
+    FUNCTION_INPUT,
+    FUNCTION_CALL,
     VARIBLE,
     CONSTANT,
     OPERATOR,
@@ -27,15 +29,14 @@ typedef struct AST_node {
 } AST_node;
 
 typedef struct {
-    type* type;
+    type* return_type;
     char* name;
-} function_input;
+} function;
 
 typedef struct {
     type* return_type;
     char* name;
-    dynamic_array* inputs;
-} function;
+} function_call;
 
 typedef struct {
     type* type;
@@ -77,7 +78,7 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
 int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* token_stack);
 void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end);
 AST_node* create_function_node(dynamic_array* tokens, int location);
-
+void generate_functions(dynamic_array* functions, dynamic_array* tokens);
 int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
 
 #endif // AST_H
