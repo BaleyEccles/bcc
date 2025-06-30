@@ -11,5 +11,5 @@ output: link_output
 link_output: assemble_output
 	ld -o output output.o
 assemble_output:
-	as -o output.o output.asm
+	as -g -o output.o output.asm
 

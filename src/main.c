@@ -26,7 +26,8 @@ void generate_default_types(dynamic_array* ts)
 
 int main()
 {
-    char input_name[] = "./tests/function/function.c";
+    char input_name[] = "./tests/fibonacci/fibonacci.c";
+    //char input_name[] = "./tests/function/function.c";
     //char input_name[] = "./tests/while_loop/while_loop.c";
     //char input_name[] = "./tests/for_loop/for_loop.c";
     //char input_name[] = "./tests/if_statement/if_statement.c";

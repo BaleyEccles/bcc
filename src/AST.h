@@ -31,6 +31,7 @@ typedef struct AST_node {
 typedef struct {
     type* return_type;
     char* name;
+    int frame_size;
 } function;
 
 typedef struct {

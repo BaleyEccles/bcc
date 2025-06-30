@@ -302,10 +302,18 @@ int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token
     int expression_end = get_closing_paren_location(tokens, expression_start);
     AST_node* if_expression_node = create_expression_node(scope, tokens, expression_start, expression_end);
     da_append(if_node->children, if_expression_node, AST_node*);
-    
-    int block_start = expression_end + 1;
-    int block_end = get_closing_paren_location(tokens, block_start);
-    generate_AST(scope, if_node, tokens, block_start, block_end);
+
+    int block_start;
+    int block_end;
+    if (token_is_parentheses(((token**)tokens->data)[expression_end + 1])) {
+        block_start = expression_end + 1;
+        block_end = get_closing_paren_location(tokens, block_start);
+        generate_AST(scope, if_node, tokens, block_start, block_end);
+    } else {
+        block_start = expression_end;
+        block_end = find_semi_colon(tokens, block_start);
+        generate_AST(scope, if_node, tokens, block_start, block_end);
+    }
 
     da_append(node->children, if_node, AST_node*);
     if (((token**)tokens->data)[block_end + 1]->type == ELSE) {
@@ -619,7 +627,7 @@ int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
         }
         stack_size = generate_stack_posistions(scope, child, stack_size);
     }
-    
+    ((function*)scope->data)->frame_size = stack_size;
     return stack_size;
     
 }

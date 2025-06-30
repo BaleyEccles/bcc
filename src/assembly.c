@@ -14,18 +14,35 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
         TOKEN_TYPE t = ((operator*)node->data)->type;
         switch (t) {
         case PLUS: {
+            fprintf(file, "# %s + %s\n", child1->token->data, child2->token->data);
             generate_rvalue_asm(file, scope, child2);
             if (child1->node_type == CONSTANT) {
                 fprintf(file, "    addl $%s, %%eax\n", ((constant*)child1->data)->value);
             } else if (child1->node_type == FUNCTION_CALL) {
                 fprintf(file, "    push %%rax\n");
-                generate_asm_function_call(file, scope, child1);
+                generate_asm_from_node(file, scope, child1);
                 fprintf(file, "    movl %%eax, %%edi\n");
                 fprintf(file, "    pop %%rax\n");
                 fprintf(file, "    addl %%edi, %%eax\n");
-                
             } else {
                 fprintf(file, "    addl -%i(%%rbp), %%eax\n", ((varible*)child1->data)->stack_pos);
+            }
+            break;
+        }
+        case MINUS: {
+            fprintf(file, "# %s - %s\n", child1->token->data, child2->token->data);
+            generate_rvalue_asm(file, scope, child1);
+            if (child2->node_type == CONSTANT) {
+                fprintf(file, "    subl $%s, %%eax\n", ((constant*)child2->data)->value);
+            } else if (child2->node_type == FUNCTION_CALL) {
+                fprintf(file, "    push %%rax\n");
+                generate_asm_from_node(file, scope, child2);
+                fprintf(file, "    movl %%eax, %%edi\n");
+                fprintf(file, "    pop %%rax\n");
+                fprintf(file, "    subl %%edi, %%eax\n");
+                
+            } else {
+                fprintf(file, "    subl -%i(%%rbp), %%eax\n", ((varible*)child2->data)->stack_pos);
             }
             break;
         }
@@ -38,6 +55,16 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
                 fprintf(file, "    addl $1, %%eax\n");
                 fprintf(file, "    movl %%eax, -%i(%%rbp)\n", ((varible*)child1->data)->stack_pos);
             }
+            break;
+        }
+        case LOGICAL_EQUALS: {
+            fprintf(file, "# %s == %s\n", child1->token->data, child2->token->data);
+            generate_rvalue_asm(file, scope, child1);
+            fprintf(file, "    movl %%eax, %%esi\n");
+            generate_rvalue_asm(file, scope, child2);
+            fprintf(file, "    movl %%eax, %%edi\n");
+            fprintf(file, "    cmpl %%edi, %%esi\n");
+            fprintf(file, "    je ");
             break;
         }
         case GREATER_THAN: {
@@ -73,7 +100,7 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
             generate_rvalue_asm(file, scope, child2);
             fprintf(file, "    movl %%eax, %%edi\n");
             fprintf(file, "    cmpl %%edi, %%esi\n");
-            fprintf(file, "    jge ");
+            fprintf(file, "    jle ");
             break;
         }
         case LOGICAL_AND: {
@@ -96,7 +123,7 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
             fprintf(file, "AND_end_%i:\n", node->token->pos_in_file);
             fprintf(file, "    cmpl $1, %%eax\n");
             fprintf(file, "    je ");
-
+            
             break;
         }
         default: {
@@ -106,6 +133,9 @@ void generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
         }
         
         
+    }
+    if (node->node_type == FUNCTION_CALL) {
+        generate_asm_function_call(file, scope, node);
     }
     if (node->node_type == VARIBLE) {
         fprintf(file, "    movl -%i(%%rbp), %%eax\n", ((varible*)node->data)->stack_pos);
@@ -122,7 +152,9 @@ void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node);
     
 void generate_if_asm(FILE* file, AST_node* scope, AST_node* node)
 {
+    fprintf(file, "# if \n");
     if (node->children->count == 3) {
+        fprintf(file, "# else \n");
         AST_node* else_node = ((AST_node**)node->children->data)[2];
         
         generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[0]);
@@ -139,6 +171,7 @@ void generate_if_asm(FILE* file, AST_node* scope, AST_node* node)
 
         generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[0]);
         fprintf(file, "%s_%i\n", node->token->data, node->token->pos_in_file);
+        fprintf(file, "    jmp end_%s_%i\n", node->token->data, node->token->pos_in_file);
         
         fprintf(file, "%s_%i:\n", node->token->data, node->token->pos_in_file);
         generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[1]);
@@ -179,14 +212,12 @@ static const char* registers[] = {
 
 void generate_asm_function_call(FILE* file, AST_node* scope, AST_node* node)
 {
+    fprintf(file, "# Calling %s\n", node->token->data);
     for (int i = 0; i < node->children->count; i++) {
         AST_node* child = ((AST_node**)node->children->data)[i];
+        generate_rvalue_asm(file, scope, child);
         if (i < CALLING_REGISTERS_COUNT) {
-            if (child->node_type == CONSTANT) {
-                fprintf(file, "    movl $%s, %s\n", ((constant*)child->data)->value, registers[i]);
-            } else {
-                fprintf(file, "    movq -%i(%%rbp), %s\n", ((varible*)child->data)->stack_pos, registers[i]);
-            }
+            fprintf(file, "    movl %%eax, %s\n", registers[i]);
             
         } else {
             fprintf(stderr, "%s:%d: TODO: Calling function with more than 6 inputs is not done yet\n \n", __FILE__, __LINE__);
@@ -201,7 +232,6 @@ void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
         generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[1]);
         fprintf(file, "    movl %%eax, -%i(%%rbp)\n", ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
     } else if (node->node_type == FUNCTION_CALL) {
-        fprintf(file, "HERE\n");
         generate_asm_function_call(file, scope, node);
         
     } else if (node->node_type == KEY_WORD) {
@@ -213,12 +243,14 @@ void generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
                 if (strcmp(((function*)scope->data)->name, "main") == 0) {
                     // Do syscall return
                     generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[0]);
+                    fprintf(file, "# return\n");
                     fprintf(file, "    movl %%eax, %%edi\n");
                     fprintf(file, "    movl $60, %%eax\n");
                     fprintf(file, "    syscall\n");
                 }
                 else {
                     generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[0]);
+                    fprintf(file, "# return\n");
                     fprintf(file, "    jmp end_%s\n",((function*)scope->data)->name);
                 }
             }
@@ -267,6 +299,7 @@ void create_asm_function(FILE* file, AST_node* root)
     fprintf(file, "%s:\n", function_name);
     fprintf(file, "    pushq %%rbp\n");
     fprintf(file, "    movq %%rsp, %%rbp\n");
+    fprintf(file, "    subq $%i, %%rsp\n", ((function*)root->data)->frame_size);
 
     AST_node* function_inputs = ((AST_node**)root->children->data)[0];
     for (int i = 0; i < function_inputs->children->count; i++) {
@@ -283,6 +316,7 @@ void create_asm_function(FILE* file, AST_node* root)
     }
 
     fprintf(file, "end_%s:\n", function_name);
+    fprintf(file, "    movq %%rbp, %%rsp\n");
     fprintf(file, "    pop %%rbp\n");
     fprintf(file, "    ret\n");
 
