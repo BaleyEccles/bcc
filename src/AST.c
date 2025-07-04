@@ -83,28 +83,36 @@ bool is_varible_defined(AST_node* node, char* str) {
 AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start, int end)
 {
     if (end - start > 1) {
-        fprintf(stderr, "%s:%d: error: More than one value in 'create_single_rvalue_node', this has not been delt with yet\nThe tokens are:\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s:%d: error: More than one value in 'create_constant_node', this has not been delt with yet\nThe tokens are:\n", __FILE__, __LINE__);
         for (int i = start; i < end + 1; i++) {
             fprintf(stderr, "    %s\n", ((token**)tokens->data)[i]->data);
         }
+        *(int*)0 = 0;
     }
+    
+    
 
     token* t = ((token**)tokens->data)[start];
     AST_node* node = malloc(sizeof(AST_node));
     init_AST_node(node);
     // TODO: Better type handling and stuff
-    if (token_is_number(t)) {
+    if (token_is_number(t) || token_is_string(t)) {
         node->node_type = CONSTANT;
         node->token = t;
         constant* c = malloc(sizeof(constant));
         
         // TODO: Type stuff
-        // c->type =
+        //c->type = 
         c->value = t->data;
         node->data = (void*)c;
+        printf("creating const expr for %s \n", c->value);
+
+
     } else {
         if (!is_varible_defined(scope, t->data)) {
             fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, t->data, t->pos_in_file);
+
+                
         }
         //node = get_node_from_name(scope, t->data);
         // TODO: For now we assume that it is a varible, if not a number
@@ -122,7 +130,7 @@ AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start
 
 }
 
-void generate_function_call_inputs(AST_node* scope, AST_node* function_node, dynamic_array* tokens, int start, int end)
+void generate_function_call_inputs(AST_node* scope, AST_node* function_node, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
     start++;
     end--;
@@ -130,13 +138,13 @@ void generate_function_call_inputs(AST_node* scope, AST_node* function_node, dyn
     // add(add(a, 2), 3);
     for (int i = start; i < end + 1; i++) {
         int end_arg = find_comma(tokens, i, end);
-        AST_node* node = create_expression_node(scope, tokens, i, end_arg);
+        AST_node* node = create_expression_node(scope, tokens, types, i, end_arg);
         da_append(function_node->children, node, AST_node*);
         i = end_arg;
     }
 }
 
-AST_node* create_function_call_node(AST_node* scope, dynamic_array* tokens, int start, int end)
+AST_node* create_function_call_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
     // add(a, b)
     // [add] [(] [a] [,] [b] [)]
@@ -145,28 +153,88 @@ AST_node* create_function_call_node(AST_node* scope, dynamic_array* tokens, int 
     init_AST_node(function_call_node);
     function_call_node->node_type = FUNCTION_CALL;
     function_call_node->token = ((token**)tokens->data)[start];
-
+    
     function_call* fc = malloc(sizeof(function));
     // TODO: type stuff
     //fc->return_type = 
     fc->name = function_call_node->token->data;
     function_call_node->data = (void*)fc;
 
-    generate_function_call_inputs(scope, function_call_node, tokens, start + 1, end);
+    generate_function_call_inputs(scope, function_call_node, tokens, types, start + 1, end);
     return function_call_node;
     
 }
+AST_node* create_access_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
+{
+    // Two cases:
+    // 1:
+    // arr[i + number - 3]
+    // ^start            ^ end
+    // 2:
+    // (arr->data())[i + number - 3]
+    // ^start       ^access_start  ^end
+    
+    AST_node* access_node = malloc(sizeof(AST_node));
+    init_AST_node(access_node);
+    access_node->node_type = ACCESS;
+    access_node->token = ((token**)tokens->data)[start];
 
-AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start, int end)
+    int access_start = -1;
+    if (((token**)tokens->data)[start]->type == PAREN_OPEN) {
+        access_start = get_closing_paren_location(tokens, start) + 1;
+    } else if (((token**)tokens->data)[start]->type == OTHER) {
+        access_start = start + 1;
+    } else {
+        fprintf(stderr, "%s:%d: error: Unhandled and maybe unreachable case: token %s at %i\n", __FILE__, __LINE__, ((token**)tokens->data)[start]->data, ((token**)tokens->data)[start]->pos_in_file);
+    }
+
+    AST_node* to_access_node = create_expression_node(scope, tokens, types, start, access_start - 1);
+
+    AST_node* access_point_node = create_expression_node(scope, tokens, types, access_start + 1, end - 1);
+
+    da_append(access_node->children, to_access_node, AST_node*);
+    da_append(access_node->children, access_point_node, AST_node*);
+    return access_node;
+    
+}
+
+AST_node* create_cast_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
+{
+    // (int*)arr[i]
+    // ^start     ^end
+    
+    int cast_start = start;
+    int cast_end = get_closing_paren_location(tokens, cast_start);
+    type* ty = get_type(tokens, types, ((token**)tokens->data)[cast_start + 1]);
+
+    AST_node* cast_expr = create_expression_node(scope, tokens, types, cast_end + 1, end);
+    
+    AST_node* cast_node = malloc(sizeof(AST_node));
+    init_AST_node(cast_node);
+    cast_node->node_type = CAST;
+    cast_node->token = ((token**)tokens->data)[cast_start + 1];
+    
+    cast* c = malloc(sizeof(cast));
+    //c->from_type = get_type_from_node(cast_expr);
+    c->to_type = ty;
+
+    da_append(cast_node->children, cast_expr, AST_node*);
+    return cast_node;
+    
+}
+
+AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
 
     while (((token**)tokens->data)[end]->type == SEMICOLON) {
         end--;
     }
-    while (((token**)tokens->data)[start]->type == PAREN_OPEN) {
+    while (((token**)tokens->data)[start]->type == PAREN_OPEN && ((token**)tokens->data)[end]->type == PAREN_CLOSE) {
         start++;
         end--;
     }
+
+    
 
     for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
         for (int j = start; j < end + 1; j++) {
@@ -188,14 +256,14 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
 
                 int left_start = start;
                 int left_end = j - 1;
-                AST_node* left_node = create_expression_node(scope, tokens, left_start, left_end);
+                AST_node* left_node = create_expression_node(scope, tokens, types, left_start, left_end);
                 da_append(node->children, left_node, AST_node*);
                 
                 if (o->type == POST_INCREMENT || o->type == POST_DECREMENT) {
                 } else {
                     int right_start = j + 1;
                     int right_end = end;
-                    AST_node* right_node = create_expression_node(scope, tokens, right_start, right_end);
+                    AST_node* right_node = create_expression_node(scope, tokens, types, right_start, right_end);
                     da_append(node->children, right_node, AST_node*);
                 }
                 
@@ -204,14 +272,22 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
         }
     }
 
-        // Check for function calls
+    // Check for function calls, acessors and casting
     for (int i = start; i < end + 1; i++) {
+
         if (((token**)tokens->data)[i + 0]->type == OTHER &&
             ((token**)tokens->data)[i + 1]->type == PAREN_OPEN) {
             int function_call_start = i;
             int function_call_end = get_closing_paren_location(tokens, i + 1);
-            return create_function_call_node(scope, tokens, function_call_start, function_call_end);
+            return create_function_call_node(scope, tokens, types, function_call_start, function_call_end);
             
+        }
+        else if (((token**)tokens->data)[i + 0]->type == PAREN_OPEN &&
+                 ((token**)tokens->data)[i + 1]->type == TYPE) {
+            return create_cast_node(scope, tokens, types, start, end);
+        }
+        else if (((token**)tokens->data)[i]->type == PAREN_SQUARE_OPEN) {
+            return create_access_node(scope, tokens, types, start, end);
         }
     }
 
@@ -221,8 +297,13 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int sta
     return create_constant_node(scope, tokens, start, end);
 }
 
-void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+
+     
+
+void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
+    // char * i = ...
+    //        ^t
     int start = get_token_location(tokens, t);
     int end = find_semi_colon(tokens, start);
 
@@ -245,13 +326,26 @@ void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
     varible_node->token = ((token**)tokens->data)[start];
     varible_node->node_type = VARIBLE;
             
-    varible* varible = malloc(sizeof(varible));
-    // TODO: types
-    varible->name = ((token**)tokens->data)[start]->data;
-    varible_node->data = (void*)varible;
+    varible* v = malloc(sizeof(varible));
+
+    if (((token**)tokens->data)[start - 1]->type == TIMES || ((token**)tokens->data)[start - 1]->type == TYPE) {
+        int i = 1;
+        while (((token**)tokens->data)[start - i]->type == TIMES) {
+            i++;
+        }
+        v->type = get_type(tokens, types, ((token**)tokens->data)[start - i]);
+    } else {
+        AST_node* definition_node = get_node_from_name(scope, varible_node->token->data);
+        v->type = ((varible*)definition_node->data)->type;
+    }
+
+
+    
+    v->name = ((token**)tokens->data)[start]->data;
+    varible_node->data = (void*)v;
 
     // Expression
-    AST_node* expression_node = create_expression_node(scope, tokens, start + 2, end - 1);
+    AST_node* expression_node = create_expression_node(scope, tokens, types, start + 2, end - 1);
 
     // Adding nodes
     da_append(equals_node->children, varible_node, AST_node*);
@@ -260,7 +354,7 @@ void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
     
 }
 
-void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     AST_node* return_node = malloc(sizeof(AST_node));
     init_AST_node(return_node);
@@ -277,14 +371,14 @@ void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, 
     // Create expression
     int start = get_token_location(tokens, t) + 1;
     int end = find_semi_colon(tokens, start);
-    AST_node* return_expression_node = create_expression_node(scope, tokens, start, end);
+    AST_node* return_expression_node = create_expression_node(scope, tokens, types, start, end);
 
     da_append(return_node->children, return_expression_node, AST_node*);
     da_append(node->children, return_node, AST_node*);
 
 }
 
-int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     AST_node* if_node = malloc(sizeof(AST_node));
     init_AST_node(if_node);
@@ -300,7 +394,7 @@ int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token
 
     int expression_start = get_token_location(tokens, t) + 1;
     int expression_end = get_closing_paren_location(tokens, expression_start);
-    AST_node* if_expression_node = create_expression_node(scope, tokens, expression_start, expression_end);
+    AST_node* if_expression_node = create_expression_node(scope, tokens, types, expression_start, expression_end);
     da_append(if_node->children, if_expression_node, AST_node*);
 
     int block_start;
@@ -308,23 +402,23 @@ int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token
     if (token_is_parentheses(((token**)tokens->data)[expression_end + 1])) {
         block_start = expression_end + 1;
         block_end = get_closing_paren_location(tokens, block_start);
-        generate_AST(scope, if_node, tokens, block_start, block_end);
+        generate_AST(scope, if_node, tokens, types, block_start, block_end);
     } else {
         block_start = expression_end;
         block_end = find_semi_colon(tokens, block_start);
-        generate_AST(scope, if_node, tokens, block_start, block_end);
+        generate_AST(scope, if_node, tokens, types, block_start, block_end);
     }
 
     da_append(node->children, if_node, AST_node*);
     if (((token**)tokens->data)[block_end + 1]->type == ELSE) {
-         return create_else_node(scope, if_node, tokens, ((token**)tokens->data)[block_end + 1]);
+        return create_else_node(scope, if_node, tokens, types, ((token**)tokens->data)[block_end + 1]);
     }
 
     
     return block_end;
 }
 
-int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     AST_node* else_node = malloc(sizeof(AST_node));
     init_AST_node(else_node);
@@ -343,17 +437,17 @@ int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, tok
     
     int else_location = get_token_location(tokens, t);
     if (((token**)tokens->data)[else_location + 1]->type == IF) {
-        return create_if_node(scope, else_node, tokens, ((token**)tokens->data)[else_location + 1]);
+        return create_if_node(scope, else_node, tokens, types, ((token**)tokens->data)[else_location + 1]);
     }
 
     int block_start = else_location + 1;
     int block_end = get_closing_paren_location(tokens, block_start);
-    generate_AST(scope, else_node, tokens, block_start, block_end);
+    generate_AST(scope, else_node, tokens, types, block_start, block_end);
     
     return block_end;
 }
 
-int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     AST_node* for_node = malloc(sizeof(AST_node));
     init_AST_node(for_node);
@@ -373,26 +467,27 @@ int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, toke
 
     int for_loop_prelude_start = for_loop_start + 1;
     int for_loop_prelude_end = find_semi_colon(tokens, for_loop_prelude_start);
-    generate_AST(scope, for_node, tokens, for_loop_prelude_start, for_loop_prelude_end);
+    generate_AST(scope, for_node, tokens, types, for_loop_prelude_start, for_loop_prelude_end);
 
     int for_loop_condition_start = for_loop_prelude_end + 1;
     int for_loop_condition_end = find_semi_colon(tokens, for_loop_condition_start);
 
-    AST_node* condition_node = create_expression_node(scope, tokens, for_loop_condition_start, for_loop_condition_end);
+    AST_node* condition_node = create_expression_node(scope, tokens, types, for_loop_condition_start, for_loop_condition_end);
     da_append(for_node->children, condition_node, AST_node*);
     
     int for_loop_epilogue_start = for_loop_condition_end;
     int for_loop_epilogue_end = for_loop_end + 1;
-    generate_AST(scope, for_node, tokens, for_loop_epilogue_start, for_loop_epilogue_end);
+    generate_AST(scope, for_node, tokens, types, for_loop_epilogue_start, for_loop_epilogue_end);
 
     int block_start = for_loop_end + 1;
     int block_end = get_closing_paren_location(tokens, block_start);
-    generate_AST(scope, for_node, tokens, block_start, block_end);
+    printf("for: %i to %i\n", block_start, block_end);
+    generate_AST(scope, for_node, tokens, types, block_start, block_end);
     
     return block_end;
 }
 
-int create_while_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+int create_while_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     AST_node* while_node = malloc(sizeof(AST_node));
     init_AST_node(while_node);
@@ -409,34 +504,34 @@ int create_while_node(AST_node* scope, AST_node* node, dynamic_array* tokens, to
 
     int expression_start = get_token_location(tokens, t) + 1;
     int expression_end = get_closing_paren_location(tokens, expression_start);
-    AST_node* while_expression_node = create_expression_node(scope, tokens, expression_start, expression_end);
+    AST_node* while_expression_node = create_expression_node(scope, tokens, types, expression_start, expression_end);
     da_append(while_node->children, while_expression_node, AST_node*);
 
     int block_start = expression_end + 1;
     int block_end = get_closing_paren_location(tokens, block_start);
-    generate_AST(scope, while_node, tokens, block_start, block_end);
+    generate_AST(scope, while_node, tokens, types, block_start, block_end);
     return block_end;
 }
 
 
-int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t)
+int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t)
 {
     switch (t->type) {
     case RETURN: {
-        create_return_node(scope, node, tokens, t);
+        create_return_node(scope, node, tokens, types, t);
         return find_semi_colon(tokens, get_token_location(tokens, t));
         break;
     }
     case IF: {
-        return create_if_node(scope, node, tokens, t);
+        return create_if_node(scope, node, tokens, types, t);
         break;
     }
     case FOR: {
-        return create_for_node(scope, node, tokens, t);
+        return create_for_node(scope, node, tokens, types, t);
         break;
     }
     case WHILE: {
-        return create_while_node(scope, node, tokens, t);
+        return create_while_node(scope, node, tokens, types, t);
         break;
     }
     default: {
@@ -448,7 +543,7 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
     return -1;
 }
 
-int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* token_stack)
+int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, dynamic_array* token_stack)
 {
 
     if (token_stack->count == 1) {
@@ -456,32 +551,35 @@ int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic
         // for (...) {...}, while(...) {...}, if (...) {...}
         // All keywords should fit here
         if (token_is_key_word(t1)) {
-            return create_key_word_node(scope, node, tokens, t1);
+            return create_key_word_node(scope, node, tokens, types, t1);
         }
-    }
+    } else
+        
     if (token_stack->count == 2) {
         token* t1 = ((token**)token_stack->data)[0];
         token* t2 = ((token**)token_stack->data)[1];
-        if (t1->type == OTHER && t2->type == EQUALS) {
+        if (t1->type == OTHER && token_is_modifier(t2)) {
             // i = ...;
             // Modify varible
 
-            create_varible_node(scope, node, tokens, t1);
+            create_varible_node(scope, node, tokens, types, t1);
             return find_semi_colon(tokens, get_token_location(tokens, t1));
         }
 
-    }
-    if (token_stack->count == 3) {
+    } else
+    
+    if (token_stack->count >= 3) {
+        
         token* t1 = ((token**)token_stack->data)[0];
-        token* t2 = ((token**)token_stack->data)[1];
-        token* t3 = ((token**)token_stack->data)[2];
-        if (t1->type == OTHER && t2->type == OTHER && t3->type == EQUALS) {
-            // int i = ...;
+        token* t2 = ((token**)token_stack->data)[token_stack->count - 2];
+        token* t3 = ((token**)token_stack->data)[token_stack->count - 1];
+        if (t1->type == TYPE && t2->type == OTHER && t3->type == EQUALS) {
+            // char * i = ...;
             // Initalize varible
-            create_varible_node(scope, node, tokens, t2);
+            create_varible_node(scope, node, tokens, types, t2);
             return find_semi_colon(tokens, get_token_location(tokens, t1));
         }
-    }
+    } else 
 
     if (((token**)token_stack->data)[token_stack->count - 1]->type == SEMICOLON ||
         ((token**)token_stack->data)[token_stack->count - 1]->type == PAREN_CLOSE) {
@@ -492,7 +590,7 @@ int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic
         
         int start = get_token_location(tokens, t1);
         int end = get_token_location(tokens, tend);
-        AST_node* expression_node = create_expression_node(scope, tokens, start, end);
+        AST_node* expression_node = create_expression_node(scope, tokens, types, start, end);
         da_append(node->children, expression_node, AST_node*);
         
         return end + 1;
@@ -500,7 +598,7 @@ int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic
     return -1;
 }
 
-void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end)
+void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
     start++;
     end--;
@@ -510,7 +608,7 @@ void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int st
 
     for (int i = start; i < end + 1; i++) {
         da_append(&token_stack, ((token**)tokens->data)[i], token*);
-        int new_location = match_tokens(scope, node, tokens, &token_stack);
+        int new_location = match_tokens(scope, node, tokens, types, &token_stack);
         if (new_location != -1) {
             i = new_location;
             token_stack.count = 0;
@@ -519,45 +617,50 @@ void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int st
     
 }
 
-void generate_function_inputs(dynamic_array* tokens, AST_node* node, int start, int end)
+void generate_function_inputs(dynamic_array* tokens, dynamic_array* types, AST_node* node, int start, int end)
 {
     start++;
     end--;
 
-    for (int i = start; i < end + 1; i += 3) {
+    for (int i = start; i < end + 1;) {
         AST_node* fi = malloc(sizeof(AST_node));
         init_AST_node(fi);
         
-        fi->token = ((token**)tokens->data)[i + 1];
+        
         fi->node_type = VARIBLE;
             
         varible* varible = malloc(sizeof(varible));
-        // TODO: types
-        varible->name = ((token**)tokens->data)[i + 1]->data;
+        varible->type = get_type(tokens, types, ((token**)tokens->data)[i]);
+
+        fi->token = ((token**)tokens->data)[i + varible->type->ptr_count + 1];
+        varible->name = ((token**)tokens->data)[i + varible->type->ptr_count + 1]->data;
         fi->data = (void*)varible;
         
         da_append(node->children, fi, AST_node*);
+
+        i += varible->type->ptr_count + 3;
     }
 }
 
-AST_node* create_function_node(dynamic_array* tokens, int location) {
-    // int foo(int a, float b)
+AST_node* create_function_node(dynamic_array* tokens, dynamic_array* types, int location)
+{
+    // [int] [*] [foo] [(] [int] [a] [,] [float] [b] [)]
     // ^location
-    //token* return_type = ((token**)tokens->data)[location];
-    token* function_name = ((token**)tokens->data)[location + 1];
+    type* return_type = get_type(tokens, types, ((token**)tokens->data)[location]);
+    token* function_name = ((token**)tokens->data)[location + return_type->ptr_count + 1];
 
     AST_node* function_node = malloc(sizeof(AST_node));
     init_AST_node(function_node);
     function* f = malloc(sizeof(function));
     // TODO: type stuff
-    //main_function->return_type = get_type_from_str(((token**)tokens->data)[location]->data);
+    f->return_type = return_type;
     f->name = function_name->data;
     
     function_node->token = function_name;
     function_node->node_type = FUNCTION;
     function_node->data = (void*)f;
 
-    int inputs_start = location + 2;
+    int inputs_start = location + return_type->ptr_count + 2;
     int inputs_end = get_closing_paren_location(tokens, inputs_start);
     
     AST_node* function_inputs_node = malloc(sizeof(AST_node));
@@ -565,41 +668,59 @@ AST_node* create_function_node(dynamic_array* tokens, int location) {
     function_inputs_node->node_type = FUNCTION_INPUT;
     function_inputs_node->token = function_name;
     
-    generate_function_inputs(tokens, function_inputs_node, inputs_start, inputs_end);
+    generate_function_inputs(tokens, types, function_inputs_node, inputs_start, inputs_end);
     da_append(function_node->children, function_inputs_node, AST_node*);
-    
     
     return function_node;
     
 }
 
-void generate_functions(dynamic_array* functions, dynamic_array* tokens)
+
+bool is_function_definition(dynamic_array* tokens, dynamic_array* types, dynamic_array* token_stack)
+{
+    if (token_stack->count >= 3) {
+        token* t1 = ((token**)token_stack->data)[0];
+        type* t = get_type(tokens, types, t1);
+
+        if (token_stack->count < t->ptr_count + 2) {
+            return false;
+        }
+        
+        token* t2 = ((token**)token_stack->data)[1 + t->ptr_count];
+        token* t3 = ((token**)token_stack->data)[2 + t->ptr_count];
+        if (t1->type == TYPE && t2->type == OTHER && t3->type == PAREN_OPEN) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void generate_functions(dynamic_array* functions, dynamic_array* tokens, dynamic_array* types)
 {
     dynamic_array token_stack;
     da_init(&token_stack, token);
     for (int i = 0; i < tokens->count; i++) {
         da_append(&token_stack, ((token**)tokens->data)[i], token*);
-        if (token_stack.count == 3) {
+        if (is_function_definition(tokens, types, &token_stack)) {
             token* t1 = ((token**)token_stack.data)[0];
-            token* t2 = ((token**)token_stack.data)[1];
-            token* t3 = ((token**)token_stack.data)[2];
-            if (t1->type == OTHER && t2->type == OTHER && t3->type == PAREN_OPEN) {
-                int function_location = get_token_location(tokens, t1);
-                AST_node* function_node = create_function_node(tokens, function_location);
-                da_append(functions, function_node, AST_node*);
+            token* t3 = ((token**)token_stack.data)[token_stack.count - 1];
 
-                int function_start = get_closing_paren_location(tokens, get_token_location(tokens, t3)) + 1;
-                int function_end = get_closing_paren_location(tokens, function_start) ;
-                generate_AST(function_node, function_node, tokens, function_start, function_end);
+            int function_location = get_token_location(tokens, t1);
+            AST_node* function_node = create_function_node(tokens, types, function_location);
+            da_append(functions, function_node, AST_node*);
+
+            int function_start = get_closing_paren_location(tokens, get_token_location(tokens, t3)) + 1;
+            int function_end = get_closing_paren_location(tokens, function_start) ;
+            generate_AST(function_node, function_node, tokens, types, function_start, function_end);
                 
-                i = function_end;
-                token_stack.count = 0;
+            i = function_end;
+            token_stack.count = 0;
 
-            }
         }
     }
-
 }
+
+
 
 void update_varible_stack_posistion(AST_node* node, char* varible_name, int stack_pos)
 {

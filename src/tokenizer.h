@@ -11,6 +11,8 @@
 
 typedef struct {
     char* string;
+    int size;
+    int ptr_count;
 } type;
 
 typedef enum {
@@ -115,15 +117,18 @@ int find_semi_colon(dynamic_array* tokens, int start_location);
 int get_token_location(dynamic_array* tokens, token* t);
 type* get_type_from_str(dynamic_array* types, char* str);
 bool token_is_type(token* t, dynamic_array* ts);
+type* get_type(dynamic_array* tokens, dynamic_array* types, token* t);
 bool token_is_parentheses(token* t);
 TOKEN_TYPE get_token_type_parentheses(token* t);
+bool token_is_modifier(token* t);
+bool token_is_string(token* t);
 bool token_is_number(token* t);
 TOKEN_TYPE get_token_type_key_word(token* t);
 bool token_is_key_word(token* t);
 bool token_is_operator(token* t);
 TOKEN_TYPE get_token_type_operator(token* t);
 bool token_is_semicolon(token* t);
-TOKEN_TYPE get_token_type(token* t, dynamic_array* ts);
+void get_token_type(dynamic_array* ts, dynamic_array* tokens, token* t);
 bool is_token_end(char* str, char c_next);
 bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos);
 token* get_next_token(FILE* f, int* start_pos);

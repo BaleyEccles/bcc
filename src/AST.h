@@ -18,6 +18,8 @@ typedef enum {
     CONSTANT,
     OPERATOR,
     KEY_WORD,
+    CAST,
+    ACCESS,
 } NODE_TYPE;
 
 // Structure definitions
@@ -27,6 +29,11 @@ typedef struct AST_node {
     token* token;
     void* data;
 } AST_node;
+
+typedef struct {
+    type* from_type;
+    type* to_type;
+} cast;
 
 typedef struct {
     type* return_type;
@@ -70,16 +77,16 @@ bool is_varible_defined(AST_node* node, char* str);
 int get_opening_paren_location(dynamic_array* tokens, int starting_token_location);
 int get_closing_paren_location(dynamic_array* tokens, int starting_token_location);
 AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start, int end);
-AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, int start, int end);
-void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t);
-void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t);
-int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t);
-int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t);
-int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, token* t);
-int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* token_stack);
-void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, int start, int end);
-AST_node* create_function_node(dynamic_array* tokens, int location);
-void generate_functions(dynamic_array* functions, dynamic_array* tokens);
+AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end);
+void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
+void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
+int create_else_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
+int create_if_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
+int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
+int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, dynamic_array* token_stack);
+void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, int start, int end);
+AST_node* create_function_node(dynamic_array* tokens, dynamic_array* types, int location);
+void generate_functions(dynamic_array* functions, dynamic_array* types, dynamic_array* tokens);
 int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
 
 #endif // AST_H

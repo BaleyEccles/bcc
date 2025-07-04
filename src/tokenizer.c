@@ -1,9 +1,12 @@
 #include "tokenizer.h"
 
 bool token_is_type(token* t, dynamic_array* ts) {
-    for (int i = 0; i < ts->count; i++) {
-        if (strcmp(((type*)ts->data)[i].string, t->data) == 0) {
-            return true;
+    if (ts != NULL) {
+        for (int i = 0; i < ts->count; i++) {
+            if (strcmp(((type**)ts->data)[i]->string, t->data) == 0) {
+                printf("type '%s' at %i\n", ((type**)ts->data)[i]->string, t->pos_in_file);
+                return true;
+            }
         }
     }
     return false;
@@ -130,8 +133,25 @@ TOKEN_TYPE get_token_type_parentheses(token* t) {
     return ERROR;
 }
 
+bool token_is_modifier(token* t)
+{
+    return (t->type == EQUALS        ||
+            t->type == PLUS_EQUALS   ||
+            t->type == MINUS_EQUALS  ||
+            t->type == TIMES_EQUALS  ||
+            t->type == DIVIDE_EQUALS ||
+            t->type == MODULO_EQUALS);
+}
+
+bool token_is_string(token* t)
+{
+    return t->data[0] == '"';
+
+}
+
 // TODO: Add support for floats
-bool token_is_number(token* t) {
+bool token_is_number(token* t)
+{
     return isdigit(t->data[0]);
 }
 
@@ -210,58 +230,126 @@ bool token_is_semicolon(token* t)
     return (';' == t->data[0]);
 }
 
-TOKEN_TYPE get_token_type(token* t, dynamic_array* ts)
+int get_ptr_count(dynamic_array* tokens, token* t)
+{
+    
+    int loc = get_token_location(tokens, t) + 1;
+    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    int ptr_count = 0;
+    while (((token**)tokens->data)[loc]->type == TIMES) {
+        loc++;
+        ptr_count++;
+        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    }
+        
+    return ptr_count;
+}
+
+bool is_type_defined(dynamic_array* ts, token* t, int ptr_count)
+{
+    for (int i = 0; i < ts->count; i++) {
+        type* ty = ((type**)ts->data)[i];
+        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
+            return true;
+        }
+    }
+    return false;
+}
+
+type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
+{
+    int ptr_count = get_ptr_count(tokens, t);
+    
+    for (int i = 0; i < types->count; i++) {
+        type* ty = ((type**)types->data)[i];
+        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
+            return ty;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find type from token %s in posistion %i \n", __FILE__, __LINE__, t->data, t->pos_in_file);
+    return NULL;
+}
+
+void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
+{
+    int ptr_count = get_ptr_count(tokens, t);
+    if (!is_type_defined(ts, t, ptr_count)) {
+        type* ty = malloc(sizeof(type));
+        ty->ptr_count = ptr_count;
+        ty->string = t->data;
+        if (ptr_count > 0) {
+            ty->size = 64;
+        } else {
+            fprintf(stderr, "%s:%d: TODO: type size was not defined\n", __FILE__, __LINE__);
+        }
+        da_append(ts, ty, type*);
+    }
+}
+
+void get_token_type(dynamic_array* ts, dynamic_array* tokens, token* t)
 {
     if (token_is_type(t, ts)) {
-        return TYPE;
+        generate_type(ts, tokens, t);
+        t->type = TYPE;
     } else if (token_is_parentheses(t)) {
-        return get_token_type_parentheses(t);
+        t->type = get_token_type_parentheses(t);
     } else if (token_is_operator(t)) {
-        return get_token_type_operator(t);
+        t->type = get_token_type_operator(t);
     } else if (token_is_semicolon(t)) {
-        return SEMICOLON;
+        t->type = SEMICOLON;
     } else if (token_is_number(t)) {
-        return NUMBER;
+        t->type = NUMBER;
     } else if (token_is_key_word(t)) {
-        return get_token_type_key_word(t);
-    } 
-    return OTHER;
+        t->type = get_token_type_key_word(t);
+    } else {
+        t->type = OTHER;
+    }
 }
 
 
 bool is_token_end(char* str, char c_next)
 {
-    int size = strlen(str);
-    char c_start = str[0];
-    bool is_end =
-        c_next == ' '  ||
-        c_next == '\n' ||
-        c_next == ';'  ||
-        c_next == '}'  ||
-        c_next == '('  ||
-        c_next == ')'  ||
-        c_next == '['  ||
-        c_next == ']'  ||
-        c_next == '{'  ||
-        c_next == '}'  ||
-        c_next == ','  ||
-        c_next == EOF;
-    is_end =
-        (c_start == ' '  ||
-         c_start == '\n' ||
-         c_start == ';'  ||
-         c_start == '}'  ||
-         c_start == '('  ||
-         c_start == ')'  ||
-         c_start == '['  ||
-         c_start == ']'  ||
-         c_start == '{'  ||
-         c_start == '}'  ||
-         c_start == ','  ||
-         c_start == EOF) ||
-        is_end;
-    if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
-        is_end = true;
+    bool is_end = false;
+    if (str[0] == '"') {
+        int len = strlen(str) - 1;
+        if (len > 1 && str[len] == '"') {
+            
+            is_end = true;
+        }
+    } else {
+        int size = strlen(str);
+        char c_start = str[0];
+        is_end =
+            c_next == ' '  ||
+            c_next == '\n' ||
+            c_next == ';'  ||
+            c_next == '}'  ||
+            c_next == '('  ||
+            c_next == ')'  ||
+            c_next == '['  ||
+            c_next == ']'  ||
+            c_next == '{'  ||
+            c_next == '}'  ||
+            c_next == ','  ||
+            c_next == '*'  ||
+            c_next == EOF;
+        is_end =
+            (c_start == ' '  ||
+             c_start == '\n' ||
+             c_start == ';'  ||
+             c_start == '}'  ||
+             c_start == '('  ||
+             c_start == ')'  ||
+             c_start == '['  ||
+             c_start == ']'  ||
+             c_start == '{'  ||
+             c_start == '}'  ||
+             c_start == ','  ||
+             c_start == EOF) ||
+            is_end;
+        if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
+            is_end = true;
+        }
     }
     return is_end;
 }
@@ -275,7 +363,7 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
     }
     char c_next = getc(f);
     rewind(f);
-
+    
     if (is_token_end(current_str, c_next)) {
         
         *start_pos += len;
@@ -316,17 +404,19 @@ token* get_next_token(FILE* f, int* start_pos)
 
 void remove_bad_chars(char* data)
 {
-    int len = strlen(data);
-    for (int i = 0; i < len; i++) {
-        if (data[i] == ' ' || data[i] == '\n') {
-            for (int j = i; j < len; j++) {
-                data[j] = data[j + 1];
+    if (data[0] != '"') {
+
+        int len = strlen(data);
+        for (int i = 0; i < len; i++) {
+            if (data[i] == ' ' || data[i] == '\n') {
+                for (int j = i; j < len; j++) {
+                    data[j] = data[j + 1];
+                }
+                i--;
+                len--;
             }
-            i--;
-            len--;
         }
     }
-
 }
 
 void clean_tokens(dynamic_array* tokens)
@@ -348,6 +438,7 @@ void clean_tokens(dynamic_array* tokens)
 
 type* get_type_from_str(dynamic_array* types, char* str)
 {
+    fprintf(stderr, "%s:%d: error: USING OBSOLETE FUNCTION %s\n", __FILE__, __LINE__, str);
     for (int i = 0; i < types->count; i++) {
         if (strcmp(((type**)types->data)[i]->string, str) == 0) {
             return ((type**)types->data)[i];

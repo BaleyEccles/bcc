@@ -7,26 +7,58 @@
 #include "graph.h"
 #include "assembly.h"
 
+// https://en.wikipedia.org/wiki/C_data_typese
 void generate_default_types(dynamic_array* ts)
 {
-    // TODO more types
     type* type_void = malloc(sizeof(type));
     type_void->string = "void";
+    type_void->size = 0;
+    type_void->ptr_count = 0;
     da_append(ts, type_void, type*);
-    type* type_int = malloc(sizeof(type));
-    type_int->string = "int";
-    da_append(ts, type_int, type*);
+    
     type* type_bool = malloc(sizeof(type));
     type_bool->string = "bool";
+    type_bool->size = 1;
+    type_bool->ptr_count = 0;
     da_append(ts, type_bool, type*);
-    type* type_float = malloc(sizeof(type));
-    type_float->string = "float";
-    da_append(ts, type_float, type*);
+
+    type* type_char = malloc(sizeof(type));
+    type_char->string = "char";
+    type_char->size = 8;
+    type_char->ptr_count = 0;
+    da_append(ts, type_char, type*);
+
+    type* type_short = malloc(sizeof(type));
+    type_short->string = "short";
+    type_short->size = 16;
+    type_short->ptr_count = 0;
+    da_append(ts, type_short, type*);
+
+    type* type_int = malloc(sizeof(type));
+    type_int->string = "int";
+    type_int->size = 16;
+    type_int->ptr_count = 0;
+    da_append(ts, type_int, type*);
+
+    type* type_long = malloc(sizeof(type));
+    type_long->string = "long";
+    type_long->size = 32;
+    type_long->ptr_count = 0;
+    da_append(ts, type_long, type*);
+
+    type* type_long_long = malloc(sizeof(type));
+    type_long_long->string = "long long";
+    type_long_long->size = 64;
+    type_long_long->ptr_count = 0;
+    da_append(ts, type_long_long, type*);
+
+    // TODO: Floats/doubles
 }
 
 int main()
 {
-    char input_name[] = "./tests/fibonacci/fibonacci.c";
+    char input_name[] = "./tests/types/types.c";
+    //char input_name[] = "./tests/fibonacci/fibonacci.c";
     //char input_name[] = "./tests/function/function.c";
     //char input_name[] = "./tests/while_loop/while_loop.c";
     //char input_name[] = "./tests/for_loop/for_loop.c";
@@ -53,25 +85,24 @@ int main()
     }
 
     // Generate default types
-    dynamic_array ts;
-    da_init(&ts, type);
-    generate_default_types(&ts);
+    dynamic_array types;
+    da_init(&types, type);
+    generate_default_types(&types);
     
     clean_tokens(&tokens);
     for (int i = 0; i < tokens.count; i++) {
-        ((token**)tokens.data)[i]->type = get_token_type(((token**)tokens.data)[i], &ts);
+        get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
         printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        //printf("%s ", ((token**)tokens.data)[i]->data);
     }
 
     
     // Generate AST
     
-    // TODO: deal with when the main function is not first and stuff
-
     dynamic_array functions;
     da_init(&functions, AST_node*);
     
-    generate_functions(&functions, &tokens);
+    generate_functions(&functions, &tokens, &types);
 
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
