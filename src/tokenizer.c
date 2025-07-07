@@ -483,3 +483,56 @@ int find_comma(dynamic_array* tokens, int start, int end)
     }
     return end;
 }
+
+type* get_number_type(dynamic_array* types, token* t)
+{
+    for (int i = 0; i < types->count; i++) {
+        type* ty = ((type**)types->data)[i];
+        // TOOD: other types than int, like float/double
+        if (strcmp(ty->string, "int") == 0 && ty->ptr_count == 0) {
+            return ty;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find number type for %s, %i type\n", __FILE__, __LINE__, t->data, t->pos_in_file);
+    return NULL;
+}
+
+type* get_string_type(dynamic_array* types)
+{
+    for (int i = 0; i < types->count; i++) {
+        type* ty = ((type**)types->data)[i];
+        if (strcmp(ty->string, "char") == 0 && ty->ptr_count == 1) {
+            return ty;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find string type\n", __FILE__, __LINE__);
+    return NULL;
+}
+
+bool type_is_string(type* ty)
+{
+    return (strcmp(ty->string, "char") == 0 && ty->ptr_count == 1);
+}
+
+type* get_type_from_name_and_ptr_count(dynamic_array* types, char* str, int ptr_count)
+{
+    for (int i = 0; i < types->count; i++) {
+        type* ty = ((type**)types->data)[i];
+        if (ty->ptr_count == ptr_count && strcmp(ty->string, str) == 0) {
+            return ty;
+        }
+    }
+    return NULL;
+}
+
+type* get_dereferenced_type(dynamic_array* types, type* t)
+{
+    type* ty = get_type_from_name_and_ptr_count(types, t->string, t->ptr_count - 1);
+    if (ty == NULL) {
+        ty = malloc(sizeof(type));
+        ty->ptr_count = t->ptr_count - 1;
+        ty->string = t->string;
+        da_append(types, ty, type*);
+    }
+    return ty;
+}

@@ -80,7 +80,7 @@ bool is_varible_defined(AST_node* node, char* str) {
 }
 
 
-AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start, int end)
+AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
     if (end - start > 1) {
         fprintf(stderr, "%s:%d: error: More than one value in 'create_constant_node', this has not been delt with yet\nThe tokens are:\n", __FILE__, __LINE__);
@@ -101,8 +101,12 @@ AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start
         node->token = t;
         constant* c = malloc(sizeof(constant));
         
-        // TODO: Type stuff
-        //c->type = 
+        // TODO: More type stuff
+        if (token_is_number(t)) {
+            c->type = get_number_type(types, t);
+        } else if (token_is_string(t)) {
+            c->type = get_string_type(types);
+        }
         c->value = t->data;
         node->data = (void*)c;
         printf("creating const expr for %s \n", c->value);
@@ -120,8 +124,9 @@ AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start
         node->token = t;
         varible* v = malloc(sizeof(varible));
         
-        // TODO: Type stuff
-        // v->type =
+        AST_node* varible_definition = get_node_from_name(scope, t->data);
+
+        v->type = ((varible*)varible_definition->data)->type;
         v->name = t->data;
         node->data = (void*)v;
         
@@ -198,6 +203,32 @@ AST_node* create_access_node(AST_node* scope, dynamic_array* tokens, dynamic_arr
     
 }
 
+type* get_type_from_node(dynamic_array* types, AST_node* node)
+{
+    if (node->node_type == VARIBLE) {
+        //*(int*)0 = 0;
+        return (((varible*)node->data)->type);
+    }
+    if (node->node_type == CONSTANT) {
+        //*(int*)0 = 0;
+        return (((constant*)node->data)->type);
+    }
+    if (node->node_type == ACCESS) {
+        AST_node* n = ((AST_node**)node->children->data)[0];
+        type* t = get_type_from_node(types, n);
+        //*(int*)0 = 0;
+        return get_dereferenced_type(types, t);
+    }
+    for (int i = 0; i < node->children->count; i++) {
+        type* t = get_type_from_node(types, ((AST_node**)node->children->data)[i]);
+        if (t != NULL) {
+            return t;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find type from node with token %s at %i\n", __FILE__, __LINE__, node->token->data, node->token->pos_in_file);
+    return NULL;
+}
+
 AST_node* create_cast_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end)
 {
     // (int*)arr[i]
@@ -215,8 +246,11 @@ AST_node* create_cast_node(AST_node* scope, dynamic_array* tokens, dynamic_array
     cast_node->token = ((token**)tokens->data)[cast_start + 1];
     
     cast* c = malloc(sizeof(cast));
-    //c->from_type = get_type_from_node(cast_expr);
+    c->from_type = get_type_from_node(types, cast_expr);
     c->to_type = ty;
+    //*(int*)0 = 0;
+
+    cast_node->data = (void*)c;
 
     da_append(cast_node->children, cast_expr, AST_node*);
     return cast_node;
@@ -294,7 +328,7 @@ AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, dynamic
     // There are no operators in the currnet token list
     // We have reached a constant number, string, char, etc. Now we must make and return it.
     //printf("start loc: %i, end loc: %i\n", start, end);
-    return create_constant_node(scope, tokens, start, end);
+    return create_constant_node(scope, tokens, types, start, end);
 }
 
 
@@ -339,7 +373,7 @@ void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
         v->type = ((varible*)definition_node->data)->type;
     }
 
-
+    //*(int*)0 = 0;
     
     v->name = ((token**)tokens->data)[start]->data;
     varible_node->data = (void*)v;
@@ -481,7 +515,7 @@ int create_for_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dyna
 
     int block_start = for_loop_end + 1;
     int block_end = get_closing_paren_location(tokens, block_start);
-    printf("for: %i to %i\n", block_start, block_end);
+    
     generate_AST(scope, for_node, tokens, types, block_start, block_end);
     
     return block_end;
@@ -545,7 +579,7 @@ int create_key_word_node(AST_node* scope, AST_node* node, dynamic_array* tokens,
 
 int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, dynamic_array* token_stack)
 {
-
+    
     if (token_stack->count == 1) {
         token* t1 = ((token**)token_stack->data)[0];
         // for (...) {...}, while(...) {...}, if (...) {...}
@@ -569,7 +603,6 @@ int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic
     } else
     
     if (token_stack->count >= 3) {
-        
         token* t1 = ((token**)token_stack->data)[0];
         token* t2 = ((token**)token_stack->data)[token_stack->count - 2];
         token* t3 = ((token**)token_stack->data)[token_stack->count - 1];
@@ -579,12 +612,13 @@ int match_tokens(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic
             create_varible_node(scope, node, tokens, types, t2);
             return find_semi_colon(tokens, get_token_location(tokens, t1));
         }
-    } else 
+    } 
 
     if (((token**)token_stack->data)[token_stack->count - 1]->type == SEMICOLON ||
         ((token**)token_stack->data)[token_stack->count - 1]->type == PAREN_CLOSE) {
         // i++;
         // for just expressions
+
         token* t1 = ((token**)token_stack->data)[0];
         token* tend = ((token**)token_stack->data)[token_stack->count - 1];
         
@@ -602,6 +636,7 @@ void generate_AST(AST_node* scope, AST_node* node, dynamic_array* tokens, dynami
 {
     start++;
     end--;
+    
 
     dynamic_array token_stack;
     da_init(&token_stack, token);
@@ -631,6 +666,7 @@ void generate_function_inputs(dynamic_array* tokens, dynamic_array* types, AST_n
             
         varible* varible = malloc(sizeof(varible));
         varible->type = get_type(tokens, types, ((token**)tokens->data)[i]);
+        
 
         fi->token = ((token**)tokens->data)[i + varible->type->ptr_count + 1];
         varible->name = ((token**)tokens->data)[i + varible->type->ptr_count + 1]->data;

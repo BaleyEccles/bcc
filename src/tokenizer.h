@@ -11,7 +11,7 @@
 
 typedef struct {
     char* string;
-    int size;
+    int size; // In bytes
     int ptr_count;
 } type;
 
@@ -134,6 +134,14 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos);
 token* get_next_token(FILE* f, int* start_pos);
 void remove_bad_chars(char* data);
 void clean_tokens(dynamic_array* tokens);
+
+type* get_number_type(dynamic_array* types, token* t);
+type* get_string_type(dynamic_array* types);
+
+bool type_is_string(type* ty);
+
+type* get_type_from_name_and_ptr_count(dynamic_array* types, char* str, int ptr_count);
+type* get_dereferenced_type(dynamic_array* types, type* t);
 
 
 // https://en.cppreference.com/w/cpp/language/operator_precedence.html

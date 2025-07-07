@@ -39,6 +39,7 @@ typedef struct {
     type* return_type;
     char* name;
     int frame_size;
+    int str_count;
 } function;
 
 typedef struct {
@@ -76,7 +77,7 @@ AST_node* get_node_from_name(AST_node* node, char* name);
 bool is_varible_defined(AST_node* node, char* str);
 int get_opening_paren_location(dynamic_array* tokens, int starting_token_location);
 int get_closing_paren_location(dynamic_array* tokens, int starting_token_location);
-AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, int start, int end);
+AST_node* create_constant_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end);
 AST_node* create_expression_node(AST_node* scope, dynamic_array* tokens, dynamic_array* types, int start, int end);
 void create_varible_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);
 void create_return_node(AST_node* scope, AST_node* node, dynamic_array* tokens, dynamic_array* types, token* t);

@@ -8,15 +8,32 @@ void add_nodes_to_graphviz_file(AST_node* node, FILE* f, int depth)
         return;
     }
     for (int i = 0; i < node->children->count; i++) {
+        
+        char* str1 = malloc(sizeof(char)*strlen(node->token->data));
+        strcpy(str1, node->token->data);
+        if (str1[0] == '"') {
+            str1[0] = ';';
+            str1[strlen(str1) - 1] = ';';
+        }
+        char* str2 = malloc(sizeof(char)*strlen(((AST_node**)(node->children->data))[i]->token->data));
+        strcpy(str2, ((AST_node**)(node->children->data))[i]->token->data);
+        if (str2[0] == '"') {
+            str2[0] = ';';
+            str2[strlen(str2) - 1] = ';';
+        }
+        
         fprintf(f, "\"%s, %i, %i\" -> \"%s, %i, %i\"\n",
-                node->token->data,
+                str1,
                 node->token->pos_in_file,
                 node->node_type,
-                ((AST_node**)(node->children->data))[i]->token->data,
+                str2,
                 ((AST_node**)(node->children->data))[i]->token->pos_in_file,
                 ((AST_node**)(node->children->data))[i]->node_type
                 );
 
+        free(str1);
+        free(str2);
+        
         add_nodes_to_graphviz_file(((AST_node**)(node->children->data))[i], f, i);
     }
 }

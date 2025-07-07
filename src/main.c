@@ -24,31 +24,31 @@ void generate_default_types(dynamic_array* ts)
 
     type* type_char = malloc(sizeof(type));
     type_char->string = "char";
-    type_char->size = 8;
+    type_char->size = 1;
     type_char->ptr_count = 0;
     da_append(ts, type_char, type*);
 
     type* type_short = malloc(sizeof(type));
     type_short->string = "short";
-    type_short->size = 16;
+    type_short->size = 2;
     type_short->ptr_count = 0;
     da_append(ts, type_short, type*);
 
     type* type_int = malloc(sizeof(type));
     type_int->string = "int";
-    type_int->size = 16;
+    type_int->size = 2;
     type_int->ptr_count = 0;
     da_append(ts, type_int, type*);
 
     type* type_long = malloc(sizeof(type));
     type_long->string = "long";
-    type_long->size = 32;
+    type_long->size = 4;
     type_long->ptr_count = 0;
     da_append(ts, type_long, type*);
 
     type* type_long_long = malloc(sizeof(type));
     type_long_long->string = "long long";
-    type_long_long->size = 64;
+    type_long_long->size = 8;
     type_long_long->ptr_count = 0;
     da_append(ts, type_long_long, type*);
 
