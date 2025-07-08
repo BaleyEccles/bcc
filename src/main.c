@@ -113,7 +113,9 @@ int main()
 
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
+        f->types = &types;
         generate_stack_posistions(f, f, 0);
+
     }
     
     FILE* asm_file = fopen("output.asm", "w");

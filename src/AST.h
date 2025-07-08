@@ -28,6 +28,8 @@ typedef struct AST_node {
     NODE_TYPE node_type;
     token* token;
     void* data;
+
+    dynamic_array* types;
 } AST_node;
 
 typedef struct {
