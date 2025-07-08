@@ -55,6 +55,7 @@ void generate_default_types(dynamic_array* ts)
     // TODO: Floats/doubles
 }
 
+
 int main()
 {
     char input_name[] = "./tests/types/types.c";
@@ -78,15 +79,19 @@ int main()
     int pos = 0;
     dynamic_array tokens;
     da_init(&tokens, token*);
-        
+    dynamic_array types;
+    da_init(&types, type);
+    dynamic_array functions;
+    da_init(&functions, AST_node*);
+    context ctx = {&tokens, &types, &functions};
+    
     while (pos < input_file_size) {
         token* t = get_next_token(input_file, &pos);
         da_append(&tokens, t, token*);
     }
 
     // Generate default types
-    dynamic_array types;
-    da_init(&types, type);
+    
     generate_default_types(&types);
     
     clean_tokens(&tokens);
@@ -98,11 +103,9 @@ int main()
 
     
     // Generate AST
+
     
-    dynamic_array functions;
-    da_init(&functions, AST_node*);
-    
-    generate_functions(&functions, &tokens, &types);
+    generate_functions(&ctx);
 
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
@@ -117,6 +120,7 @@ int main()
         generate_stack_posistions(f, f, 0);
 
     }
+    
     
     FILE* asm_file = fopen("output.asm", "w");
     create_asm_file(asm_file, &functions);

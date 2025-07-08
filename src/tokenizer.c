@@ -278,7 +278,7 @@ void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
         ty->ptr_count = ptr_count;
         ty->string = t->data;
         if (ptr_count > 0) {
-            ty->size = 64;
+            ty->size = 8;
         } else {
             fprintf(stderr, "%s:%d: TODO: type size was not defined\n", __FILE__, __LINE__);
         }
