@@ -109,7 +109,6 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
         }
         c->value = t->data;
         node->data = (void*)c;
-        printf("creating const expr for %s \n", c->value);
 
 
     } else {

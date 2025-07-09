@@ -9,12 +9,13 @@ int sum_chars(char* str, int str_size)
     return result;
 }
 
-int main() {
+int main()
+{
     
-    char* str = "\a\a";
-    int str_size = 2;
+    char* str = "abcdefg";
+    int str_size = 7;
     
     int output = sum_chars(str, str_size);
     
-    return output;
+    return output - 700;
 }

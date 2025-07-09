@@ -597,7 +597,11 @@ char generate_asm_access(FILE* file, AST_node* scope, AST_node* node)
     char size_char_1 = generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[1]);
     int size_1 = get_size_from_name(size_char_1);
     char* dest = get_register("%eax", size_1);
-    dest = resize_register(file, dest, size_1, 8);
+
+    char* tmp = get_register("%ebx", size_1);
+    fprintf(file, "    mov%c %s, %s\n", size_char_1, dest, tmp);
+    
+    dest = resize_register(file, tmp, size_1, 8);
     
     char size_char_2 = generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[0]);
     int size_2 = get_size_from_name(size_char_2);

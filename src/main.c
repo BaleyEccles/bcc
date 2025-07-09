@@ -56,25 +56,81 @@ void generate_default_types(dynamic_array* ts)
 }
 
 
-int main()
+char* parse_inputs(char* argv)
 {
-    char input_name[] = "./tests/types/types.c";
-    //char input_name[] = "./tests/fibonacci/fibonacci.c";
-    //char input_name[] = "./tests/function/function.c";
-    //char input_name[] = "./tests/while_loop/while_loop.c";
-    //char input_name[] = "./tests/for_loop/for_loop.c";
-    //char input_name[] = "./tests/if_statement/if_statement.c";
-    //char input_name[] = "./tests/test1/test1.c";
-    FILE* input_file = fopen(input_name, "r");
+    // argv Should look like -A=-g -o blah blah blah
+    int low_range = 3;
+    int len = strlen(argv) - low_range;
+    char* inputs = malloc(sizeof(char)*(len));
+    inputs = strncpy(inputs, argv + low_range, len);
+    inputs[len] = '\0';
+    return inputs;
+}
+
+int main(int argc, char *argv[])
+{
+    printf("Number of arguments: %d\n", argc);
+
+    char* flag = malloc(sizeof(char)*3);
+    char* as_inputs = NULL;
+    char* ld_inputs = NULL;
+    char* input_file_name = NULL;
+    char* output_file = NULL;
+    for (int i = 1; i < argc; i++) {
+        printf("Argument %d: %s\n", i, argv[i]);
+        flag[0] = argv[i][0];
+        flag[1] = argv[i][1];
+        flag[2] = '\0';
+        
+        if (strcmp(flag, "-A") == 0) {
+            as_inputs = parse_inputs(argv[i]);
+        } else if (strcmp(flag, "-L") == 0) {
+            ld_inputs = parse_inputs(argv[i]);
+        } else if (strcmp(flag, "-o") == 0) {
+            output_file = argv[i + 1];
+            i++;
+        } else {
+            input_file_name = argv[i];
+        }
+    }
+    if (output_file == NULL) {
+        output_file = "output";
+    }
+    if (as_inputs == NULL) {
+        as_inputs = "";
+    }
+    if (ld_inputs == NULL) {
+        ld_inputs = "";
+    }
+    if (input_file_name == NULL) {
+        fprintf(stderr, "%s:%d: error: No input file supplied\n", __FILE__, __LINE__);
+        input_file_name = "./tests/if_statement/if_statement.c";
+    }
+
+
+    char* as_default_command = malloc(sizeof(char)*(strlen(output_file)*2 + 20));
+    sprintf(as_default_command, "as -g -o %s.o %s.asm ", output_file, output_file);
+
+    char* as_command = malloc(sizeof(char)*(strlen(as_default_command) + strlen(as_inputs) + 1));
+    strcat(as_command, as_default_command);
+    strcat(as_command, as_inputs);
+
+    char* ld_default_command = malloc(sizeof(char)*(strlen(output_file)*2 + 20));
+    sprintf(ld_default_command, "ld -o %s %s.o ", output_file, output_file);
+    char* ld_command = malloc(sizeof(char)*(strlen(ld_default_command) + strlen(ld_inputs) + 1));
+    strcat(ld_command, ld_default_command);
+    strcat(ld_command, ld_inputs);
+    
+    FILE* input_file = fopen(input_file_name, "r");
     
     fseek(input_file, 0L, SEEK_END);
     int input_file_size = ftell(input_file);
     rewind(input_file);
     
-    char c;
-    while((c = getc(input_file)) != EOF) {
-        printf("%c", c);
-    }
+    //char c;
+    //while((c = getc(input_file)) != EOF) {
+    //    printf("%c", c);
+    //}
 
     int pos = 0;
     dynamic_array tokens;
@@ -97,7 +153,7 @@ int main()
     clean_tokens(&tokens);
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
 
@@ -120,18 +176,26 @@ int main()
         generate_stack_posistions(f, f, 0);
 
     }
+
+    char* asm_file_name = malloc(sizeof(char)*(strlen(output_file) + 5));
+    sprintf(asm_file_name, "%s.asm", output_file);
     
-    
-    FILE* asm_file = fopen("output.asm", "w");
+    FILE* asm_file = fopen(asm_file_name, "w");
     create_asm_file(asm_file, &functions);
 
     fclose(asm_file);
     
-    asm_file = fopen("output.asm", "r");
-    printf("\nAssembly file:\n\n");
-    while ((c = getc(asm_file)) != EOF) {
-        printf("%c", c);
-    }
-    
+    asm_file = fopen(asm_file_name, "r");
+    //printf("\nAssembly file:\n\n");
+    //while ((c = getc(asm_file)) != EOF) {
+    //    printf("%c", c);
+    //}
+
+    printf("INFO: Running: %s\n", as_command);
+    system(as_command);
+    printf("INFO: Running: %s\n", ld_command);
+    system(ld_command);
+   
     return 0;
+    
 }

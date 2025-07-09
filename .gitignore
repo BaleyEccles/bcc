@@ -1,5 +1,7 @@
-main
+bcc
 *~
 *.asm
 *.gv
 *.o
+*_gcc*
+*_bcc*

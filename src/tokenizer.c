@@ -4,7 +4,6 @@ bool token_is_type(token* t, dynamic_array* ts) {
     if (ts != NULL) {
         for (int i = 0; i < ts->count; i++) {
             if (strcmp(((type**)ts->data)[i]->string, t->data) == 0) {
-                printf("type '%s' at %i\n", ((type**)ts->data)[i]->string, t->pos_in_file);
                 return true;
             }
         }
