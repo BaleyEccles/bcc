@@ -10,7 +10,7 @@ This will produce a executable called `bcc`, which is the compiler.
 A suite tests have been developed in the `tests/` directory, to run these tests run the following command.
 ```console
 $ make test
-``
+```
 This will execute the `test.sh` script which will enter each test in the `tests/` directory and run it.
 Each of the tests will indicate if they passed or failed. If a test fails it will highligt the differences in output using the `diff` command.
 
