@@ -82,6 +82,11 @@ bool is_varible_defined(AST_node* node, char* str) {
 
 AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end)
 {
+    while (((token**)ctx->tokens->data)[start]->type == PAREN_OPEN && ((token**)ctx->tokens->data)[end + 1]->type == PAREN_CLOSE) {
+        start++;
+        end--;
+    }
+        
     if (end - start > 1) {
         fprintf(stderr, "%s:%d: error: More than one value in 'create_constant_node', this has not been delt with yet\nThe tokens are:\n", __FILE__, __LINE__);
         for (int i = start; i < end + 1; i++) {

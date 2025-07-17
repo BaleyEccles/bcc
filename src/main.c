@@ -6,6 +6,7 @@
 #include "AST.h"
 #include "graph.h"
 #include "assembly.h"
+#include "preprocessor.h"
 
 // https://en.wikipedia.org/wiki/C_data_typese
 void generate_default_types(dynamic_array* ts)
@@ -69,7 +70,6 @@ char* parse_inputs(char* argv)
 
 int main(int argc, char *argv[])
 {
-    printf("Number of arguments: %d\n", argc);
 
     char* flag = malloc(sizeof(char)*3);
     char* as_inputs = NULL;
@@ -126,19 +126,16 @@ int main(int argc, char *argv[])
     fseek(input_file, 0L, SEEK_END);
     int input_file_size = ftell(input_file);
     rewind(input_file);
+
     
-    //char c;
-    //while((c = getc(input_file)) != EOF) {
-    //    printf("%c", c);
-    //}
 
     int pos = 0;
     dynamic_array tokens;
     da_init(&tokens, token*);
-    dynamic_array types;
-    da_init(&types, type);
     dynamic_array functions;
     da_init(&functions, AST_node*);
+    dynamic_array types;
+    da_init(&types, type*);
     context ctx = {&tokens, &types, &functions};
     
     while (pos < input_file_size) {
@@ -146,21 +143,34 @@ int main(int argc, char *argv[])
         da_append(&tokens, t, token*);
     }
 
-    // Generate default types
+
+
     
+    // Generate default types    
     generate_default_types(&types);
     
+    for (int i = 0; i < tokens.count; i++) {
+        get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
+        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        //printf("%s ", ((token**)tokens.data)[i]->data);
+    }
+
+    // Pre proccess
+    preprocess_file(&tokens);
+    
     clean_tokens(&tokens);
+
+
+    
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
         //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
+    
 
     
     // Generate AST
-
-    
     generate_functions(&ctx);
 
     for (int i = 0; i < functions.count; i++) {
@@ -186,10 +196,6 @@ int main(int argc, char *argv[])
     fclose(asm_file);
     
     asm_file = fopen(asm_file_name, "r");
-    //printf("\nAssembly file:\n\n");
-    //while ((c = getc(asm_file)) != EOF) {
-    //    printf("%c", c);
-    //}
 
     printf("INFO: Running: %s\n", as_command);
     system(as_command);

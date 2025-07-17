@@ -114,9 +114,11 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
 
 
 bool token_is_parentheses(token* t) {
-    for (int i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
-        if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
-            return true;
+    if (t != NULL) {
+        for (int i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
+            if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
+                return true;
+            }
         }
     }
     return false;
@@ -331,6 +333,7 @@ bool is_token_end(char* str, char c_next)
             c_next == '}'  ||
             c_next == ','  ||
             c_next == '*'  ||
+            c_next == '#'  ||
             c_next == EOF;
         is_end =
             (c_start == ' '  ||
@@ -344,6 +347,7 @@ bool is_token_end(char* str, char c_next)
              c_start == '{'  ||
              c_start == '}'  ||
              c_start == ','  ||
+             c_start == '#'  ||
              c_start == EOF) ||
             is_end;
         if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
@@ -474,10 +478,12 @@ int find_comma(dynamic_array* tokens, int start, int end)
 {
     for (int i = start; i < end + 1; i++) {
         token* t = ((token**)tokens->data)[i];
-        if (token_is_parentheses(t)) {
-            i = get_closing_paren_location(tokens, i);
-        } else if (strcmp(t->data, ",") == 0) {
-            return i;
+        if (t != NULL) {
+            if (token_is_parentheses(t)) {
+                i = get_closing_paren_location(tokens, i);
+            } else if (strcmp(t->data, ",") == 0) {
+                return i;
+            }
         }
     }
     return end;

@@ -120,6 +120,7 @@ bool token_is_type(token* t, dynamic_array* ts);
 type* get_type(dynamic_array* tokens, dynamic_array* types, token* t);
 bool token_is_parentheses(token* t);
 TOKEN_TYPE get_token_type_parentheses(token* t);
+int get_closing_paren_location(dynamic_array* tokens, int starting_token_location);
 bool token_is_modifier(token* t);
 bool token_is_string(token* t);
 bool token_is_number(token* t);

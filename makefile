@@ -1,5 +1,5 @@
 
-SRC_FILES = ./src/main.c ./src/tokenizer.c ./src/AST.c ./src/graph.c ./src/assembly.c
+SRC_FILES = ./src/main.c ./src/tokenizer.c ./src/AST.c ./src/graph.c ./src/assembly.c ./src/preprocessor.c
 
 build:
 	gcc -Wall -g -o bcc $(SRC_FILES)
