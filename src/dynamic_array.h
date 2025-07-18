@@ -41,7 +41,6 @@ typedef struct {
         if ((DA)->count + (LEN) >= (DA)->size) {                        \
             da_allocate(DA, DA_TYPE, 2*(((DA)->count + (LEN))));        \
         }                                                               \
-        memmove((DA)->data + sizeof(DA_TYPE)*((LOC) + (LEN)), (DA)->data + sizeof(DA_TYPE)*(LOC), ((DA)->count*sizeof(DA_TYPE) - (LOC))*sizeof(DA_TYPE)); \
+        memmove((DA)->data + sizeof(DA_TYPE) * ((LOC) + (LEN)), (DA)->data + sizeof(DA_TYPE) * LOC, ((DA)->count - (LOC)) * sizeof(DA_TYPE)); \
         (DA)->count += (LEN);                                           \
     }
-

@@ -58,48 +58,48 @@ int get_end_of_define(dynamic_array* tokens, int start)
     return -1;
 }
 
+
+void replace_tokens_with_array(dynamic_array* tokens_dst, token* t, int start_range, int end_range, dynamic_array* tokens_src)
+{
+    int len = tokens_src->count;
+    for (int i = start_range; i < end_range; i++) {
+        token* current_token = ((token**)tokens_dst->data)[i];
+        if (strcmp(current_token->data, t->data) == 0) {
+            da_shift(tokens_dst, token*, i, len - 1);
+            
+            for (int j = 0; j < len; j++) {
+                ((token**)tokens_dst->data)[j + i] = ((token**)tokens_src->data)[j];
+            }
+        }
+    }
+}
+    
 void replace_tokens(dynamic_array* tokens, token* t, int start_range, int end_range, int start, int end)
 {
-    
     int len = end - start;
-    printf("len %i\n", len);
 
-    for (int j = 0; j < len; j++) {
-        printf("t %s\n", ((token**)tokens->data)[j + start]->data);
-    }
     for (int i = start_range; i < end_range; i++) {
         token* current_token = ((token**)tokens->data)[i];
         if (strcmp(current_token->data, t->data) == 0) {
-            printf("SHIFT\n");
             da_shift(tokens, token*, i, len - 1);
-            
-
             for (int j = 0; j < len; j++) {
+                ((token**)tokens->data)[j + i] = ((token**)tokens->data)[j + start];
                 
-                if (start_range < start) {
-                    printf("replacing %s with %s\n", ((token**)tokens->data)[j + i]->data, ((token**)tokens->data)[j + start + len - 1]->data);
-                    ((token**)tokens->data)[j + i] = ((token**)tokens->data)[j + start + len - 1];
-
-                    //((token**)tokens->data)[j + i]->data = "H ";
-                    printf("added H %i\n", j);
-
-                } else {
-                    printf("len: %i\n", len);
-                    printf("replacing %s with %s\n", ((token**)tokens->data)[j + i]->data, ((token**)tokens->data)[j + start]->data);
-                    ((token**)tokens->data)[j + i] = ((token**)tokens->data)[j + start];
+                if (j + i > tokens->count || j + start > tokens->count) {
+                    fprintf(stderr, "%s:%d: error: Messed up ranges in replace_tokens\n", __FILE__, __LINE__);
                 }
+        
+            
             }
-            printf("\n");
         }
     }
     
-    printf("----------\n");
 }
 
 void remove_tokens(dynamic_array* tokens, int start, int end)
 {
     token* t = malloc(sizeof(token));
-    t->data = " ";
+    t->data = "";
     
     for (int i = start; i < end; i++) {
         ((token**)tokens->data)[i] = t;
@@ -108,7 +108,6 @@ void remove_tokens(dynamic_array* tokens, int start, int end)
 
 void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start, int macro_input_end, int start, int end)
 {
-    int macro_end = get_end_of_define(tokens, macro_input_end);
     dynamic_array* macro_inputs = malloc(sizeof(dynamic_array));
     da_init(macro_inputs, token*);
     for (int i = macro_input_start; i < macro_input_end; i++) {
@@ -133,67 +132,48 @@ void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start
     // [a] [b] [c] ...
 
     
-    int len = end - start;
     for (int i = start; i < tokens->count; i++) {
         token* current_token = ((token**)tokens->data)[i];
         if (strcmp(current_token->data, t->data) == 0) {
             if (strcmp(((token**)tokens->data)[i + 1]->data, "(") != 0) {
                 fprintf(stderr, "%s:%d: error: Next token is not a ( for macro %s, %i\n", __FILE__, __LINE__, current_token->data, current_token->pos_in_file);
             }
+            dynamic_array* inputs = malloc(sizeof(dynamic_array));
+            da_init(inputs, dynamic_array*);
+            int loc = i + 2;
+            int macro_end = get_closing_paren_location(tokens, loc - 1);
+            while (loc < macro_end) {
+                dynamic_array* input = malloc(sizeof(dynamic_array));
+                da_init(input, token*);
+                int comma_loc = find_comma(tokens, loc, macro_end - 1);
+                if (token_is_parentheses(((token**)tokens->data)[comma_loc + 1])) {
+                    comma_loc++;
+                }
+                                                                               
+                for (int j = loc; j < comma_loc; j++) {
+                    da_append(input, ((token**)tokens->data)[j], token*);
+                }
+                da_append(inputs, input, dynamic_array*);
+                loc = comma_loc + 1;
+            }
+
+            if (inputs->count != macro_inputs->count) {
+                fprintf(stderr, "%s:%d: error: Mismatched input counts for macro %s %i with %i inputs and %s %i with %i inputs\n", __FILE__, __LINE__, t->data, t->pos_in_file, macro_inputs->count, current_token->data, current_token->pos_in_file, inputs->count);
+            }
+
+            // We now have a mapping from definition inputs to application inputs
+            // a -> [1 + 2]
+            // b -> [5]
+            // ...
+            remove_tokens(tokens, i + 1, macro_end + 1);
+            replace_tokens(tokens, t, i, i + 1, start, end);
+            for (int j = 0; j < macro_inputs->count; j++) {
+                replace_tokens_with_array(tokens, ((token**)macro_inputs->data)[j], i, macro_end, ((dynamic_array**)inputs->data)[j]);
+                macro_end += ((dynamic_array**)inputs->data)[j]->count;
+            }
+
             
-
-            int open_paren = i + 1;
-            int close_paren = get_closing_paren_location(tokens, open_paren);
-
-            dynamic_array* token_idxs = malloc(sizeof(dynamic_array));
-            da_init(token_idxs, int);
             
-            for (int j = open_paren + 1; j < close_paren; j++) {
-                int end_arg = find_comma(tokens, j, close_paren - 1);
-                da_append(token_idxs, j, int);
-                da_append(token_idxs, end_arg - 1, int);
-                j = end_arg;
-            }
-            ((int*)token_idxs->data)[token_idxs->count - 1]++;
-
-            printf("loc: %i\n", ((int*)token_idxs->data)[0]);
-            replace_tokens(tokens, t, macro_input_end + 1, tokens->count, macro_input_end + 1, macro_end);
-
-            int macro_len = macro_end - macro_input_end;
-            for (int k = 0; k < token_idxs->count; k += 2) {
-                ((int*)token_idxs->data)[k + 0] += macro_len - 2;
-                ((int*)token_idxs->data)[k + 1] += macro_len - 1;
-            }
-            
-            int opening_paren_loc = ((int*)token_idxs->data)[0] - 1;
-
-            for (int i = 0; i < tokens->count; i++) {
-                printf("%s", ((token**)tokens->data)[i]->data);
-            }
-            
-            for (int k = 0; k < token_idxs->count; k += 2) {
-
-                int a = ((int*)token_idxs->data)[k];
-                int b = ((int*)token_idxs->data)[k + 1];
-                
-                replace_tokens(tokens, ((token**)macro_inputs->data)[k/2],
-                               i - macro_len, ((int*)token_idxs->data)[k],
-                               ((int*)token_idxs->data)[k], ((int*)token_idxs->data)[k + 1]);
-
-                // This may fail if k + 1 + 2 is not allocated. This is bad. if k < count do this, or somthing.
-                ((int*)token_idxs->data)[k + 0 + 2] += ((int*)token_idxs->data)[k + 1] - ((int*)token_idxs->data)[k];
-                ((int*)token_idxs->data)[k + 1 + 2] += ((int*)token_idxs->data)[k + 1] - ((int*)token_idxs->data)[k];
-                opening_paren_loc += ((int*)token_idxs->data)[k + 1] - ((int*)token_idxs->data)[k];
-            }
-
-            for (int i = 0; i < tokens->count; i++) {
-                printf("%s", ((token**)tokens->data)[i]->data);
-            }
-            int del_start = opening_paren_loc;
-            printf("d1 %i\n", del_start);
-            int del_end = get_closing_paren_location(tokens, del_start) + 1;
-            printf("d1 %i d2 %i\n",del_start, del_end);
-            remove_tokens(tokens, del_start, del_end);
         }
     }
     
@@ -254,20 +234,14 @@ void do_preprocessor(dynamic_array* tokens, int start, int key)
     }
     }
 }
-#define MAX_PREPROCESSOR_SIZE 32
+
 void preprocess_file(dynamic_array* tokens)
 {
-    for (int i = 0; i < tokens->count; i++) {
-        printf("%s", ((token**)tokens->data)[i]->data);
-    }
     
     for (int i = 0; i < tokens->count; i++) {
         int key = get_preproccessor(tokens, i);
         if (key != -1) {
             do_preprocessor(tokens, i, key);
-            for (int i = 0; i < tokens->count; i++) {
-                printf("%s", ((token**)tokens->data)[i]->data);
-            }
         }
     }
 

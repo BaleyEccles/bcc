@@ -4,6 +4,6 @@
 
 
 int main() {
-    int j = ADD(NOT(1 + 2), 5);
+    int j = ADD(5, NOT(1 + 2));
     return j;
 }

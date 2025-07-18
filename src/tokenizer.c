@@ -425,10 +425,14 @@ void remove_bad_chars(char* data)
 void clean_tokens(dynamic_array* tokens)
 {
     for (int i = 0; i < tokens->count; i++) {
-        remove_bad_chars(((token**)tokens->data)[i]->data);
+        token* t = ((token**)tokens->data)[i];
+        if (t->data == NULL) {
+            t->data = "";
+        }
         
+        remove_bad_chars(t->data);
         // remove empty tokens 
-        if (strlen(((token**)tokens->data)[i]->data) == 0) {
+        if (strlen(t->data) == 0) {
             for (int j = i; j < tokens->count; j++) {
                 ((token**)tokens->data)[j] = ((token**)tokens->data)[j + 1];
             }

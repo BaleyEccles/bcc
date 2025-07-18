@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     char* input_file_name = NULL;
     char* output_file = NULL;
     for (int i = 1; i < argc; i++) {
-        printf("Argument %d: %s\n", i, argv[i]);
+        //printf("Argument %d: %s\n", i, argv[i]);
         flag[0] = argv[i][0];
         flag[1] = argv[i][1];
         flag[2] = '\0';
@@ -132,10 +132,10 @@ int main(int argc, char *argv[])
     int pos = 0;
     dynamic_array tokens;
     da_init(&tokens, token*);
-    dynamic_array functions;
-    da_init(&functions, AST_node*);
     dynamic_array types;
     da_init(&types, type*);
+    dynamic_array functions;
+    da_init(&functions, AST_node*);
     context ctx = {&tokens, &types, &functions};
     
     while (pos < input_file_size) {
@@ -151,17 +151,17 @@ int main(int argc, char *argv[])
     
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
-        //printf("%s ", ((token**)tokens.data)[i]->data);
+        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
     }
 
+    
     // Pre proccess
     preprocess_file(&tokens);
-    
     clean_tokens(&tokens);
-
-
     
+
+
+
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
         //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
