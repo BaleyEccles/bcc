@@ -1,5 +1,5 @@
-
-#define ADD(a, b) (a + b)
+#  define ADD(a, b) (a                         \
+                     + b)
 #define NOT(a) (a)
 
 

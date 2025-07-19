@@ -58,6 +58,19 @@ int get_end_of_define(dynamic_array* tokens, int start)
     return -1;
 }
 
+int get_end_of_line(dynamic_array* tokens, int start)
+{
+    token* t;
+    for (int i = start; i < tokens->count; i++) {
+        t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "\n") == 0) {
+            return i;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find end of preprocessor define\n", __FILE__, __LINE__);
+    return -1;
+}
+
 
 void replace_tokens_with_array(dynamic_array* tokens_dst, token* t, int start_range, int end_range, dynamic_array* tokens_src)
 {
@@ -167,11 +180,12 @@ void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start
             // ...
             remove_tokens(tokens, i + 1, macro_end + 1);
             replace_tokens(tokens, t, i, i + 1, start, end);
+            macro_end += end - start;
             for (int j = 0; j < macro_inputs->count; j++) {
                 replace_tokens_with_array(tokens, ((token**)macro_inputs->data)[j], i, macro_end, ((dynamic_array**)inputs->data)[j]);
                 macro_end += ((dynamic_array**)inputs->data)[j]->count;
             }
-
+            
             
             
         }
@@ -179,8 +193,212 @@ void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start
     
 }
 
+char* get_path(dynamic_array* paths, char* name) {
+    for (int i = 0; i < paths->count; i++) {
+        char* str = ((char**)paths->data)[i];
+        char* path = malloc(sizeof(char)*(strlen(name) + strlen(str) + 1));
+        for (int j = 0; j < strlen(str); j++) {
+            path[j] = str[j];
+        }
+        path[strlen(str)] = '/';
+        for (int j = strlen(str) + 1; j < strlen(name) + strlen(str) + 1; j++) {
+            path[j] = name[j - strlen(str) - 1];
+        }
 
-void do_preprocessor_define(dynamic_array* tokens, int start, int end)
+
+        if (access(path, F_OK) == 0) {
+            return path;
+        }
+        free(path);
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find file %s\n", __FILE__, __LINE__, name);
+    return "";
+}
+
+int find_endif(dynamic_array* tokens, int start)
+{
+    int loc = 0;
+    int if_count = 1;
+    for (int i = start; i < tokens->count; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "#") == 0) {
+            i++;
+            t = ((token**)tokens->data)[i];
+            while (strcmp(t->data, " ") == 0) {
+                i++;
+                t = ((token**)tokens->data)[i];
+            }
+
+            if (t->data[0] == 'i' && t->data[1] == 'f') {
+                if_count++;
+            }
+            if (strcmp(t->data, "endif") == 0) {
+                if_count--;
+            }
+        }
+        if (if_count == 0) {
+            loc = i;
+            return loc;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find endif for %s %i\n", __FILE__, __LINE__, ((token**)tokens->data)[start]->data, ((token**)tokens->data)[start]->pos_in_file);
+    return -1;
+}
+
+void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+{
+
+    token* ifndef_token;
+    int ifndef_token_loc;
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "ifndef") == 0) {
+            ifndef_token = t;
+            ifndef_token_loc = i;
+            break;
+        }
+    }
+    int endif_loc = find_endif(tokens, ifndef_token_loc + 1);
+
+    token* define_token;
+    int define_token_loc;
+    for (int i = ifndef_token_loc + 1; i < end; i++) {
+        token* t1 = ((token**)tokens->data)[i - 1];
+        token* t2 = ((token**)tokens->data)[i + 0];
+        if (strcmp(t1->data, " ") == 0 && strcmp(t2->data, " ") != 0) {
+            define_token = t2;
+            define_token_loc = i;
+            break;
+        }
+    }
+    
+    int endif_token_loc = find_endif(tokens, ifndef_token_loc + 1);
+    token* endif_token = ((token**)tokens->data)[endif_token_loc];
+    
+    bool defined = false;
+    for (int i = 0; i < defines->count; i++) {
+        char* str = ((char**)defines->data)[i];
+        if (strcmp(str, define_token->data)) {
+            defined = true;
+            break;
+        }
+    }
+    if (defined) {
+        remove_tokens(tokens, start, endif_token_loc);
+    } else {
+        remove_tokens(tokens, start, end);
+        int endif_hash_loc = -1;
+        for (int i = endif_token_loc; i >= start; i--) {
+            token* t = ((token**)tokens->data)[i];
+            if (strcmp(t->data, "#") == 0) {
+                endif_hash_loc = i;
+                break;
+            }
+        }
+        remove_tokens(tokens, endif_hash_loc, endif_token_loc + 1);
+    }
+
+
+}
+
+
+
+void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+{
+    char* include_name;
+    token* include_token;
+    int name_start = 0;
+    int name_end = 0;
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if ((t->data[0] == '<' && t->data[strlen(t->data) - 1] == '>') ||
+            (t->data[0] == '"' && t->data[strlen(t->data) - 1] == '"')) {
+            include_name = malloc((strlen(t->data) - 2)*sizeof(char));
+            strcpy(include_name, t->data);
+            include_token = t;
+            break;
+        } else if (t->data[0] == '<' || t->data[0] == '"') {
+            int idx = i;
+            int count = 0;
+            while (t->data[strlen(t->data) - 1] != '"' && t->data[strlen(t->data) - 1] != '>') {
+                count++;
+                i++;
+                t = ((token**)tokens->data)[i];
+            }
+            count++;
+            i++;
+            t = ((token**)tokens->data)[i];
+            
+            int size = 0;
+            for (int j = 0; j < count; j++) {
+                t = ((token**)tokens->data)[idx + j];
+                size += strlen(t->data);
+            }
+            include_name = malloc(size*sizeof(char));
+            size = 0;
+            for (int j = 0; j < count; j++) {
+                t = ((token**)tokens->data)[idx + j];
+                strcpy(include_name + size*sizeof(char), t->data);
+                size += strlen(t->data);
+            }
+            break;
+        }
+    }
+    printf("file: %s\n", include_name);
+    
+    bool external_file = false;
+    if (include_name[0] == '<') {
+        external_file = true;
+    }
+    int len = strlen(include_name);
+    for (int i = 0; i < len; i++) {
+        if (include_name[i] == '<' || include_name[i] == '>' || include_name[i] == '"') {
+            for (int j = i; j < len; j++) {
+                include_name[j] = include_name[j + 1];
+            }
+            i--;
+            len--;
+        }
+    }
+    
+    char* file_name = get_path(include_paths, include_name);
+    printf("path %s\n", file_name);
+
+
+    FILE* file = fopen(file_name, "r");
+    fseek(file, 0L, SEEK_END);
+    int file_size = ftell(file);
+    rewind(file);
+
+    dynamic_array file_tokens;
+    da_init(&file_tokens, token*);
+    
+    int pos = 0;
+    while (pos < file_size) {
+        token* t = get_next_token(file, &pos);
+        da_append(&file_tokens, t, token*);
+    }
+    remove_comments(&file_tokens);
+    preprocess_file(&file_tokens, defines, include_paths);
+    replace_tokens_with_array(tokens, include_token, start, end, &file_tokens);
+    
+}
+
+void do_preprocessor_undefine(dynamic_array* tokens, dynamic_array* defines, int start, int end)
+{
+    //token* name;
+    //for (int i = i + 1; i < tokens->count; i++) {
+    //    name = ((token**)tokens->data)[i];
+    //    if (strcmp(name->data, " ") != 0) {
+    //        break;
+    //    }
+    //}
+    //
+    //for (int i = 0; i < defines->count; i++) {
+    //}
+}
+
+void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int start, int end)
 {
     // We need to know if there is a space between MACRO and (.
     // This will determine if it is a function macro, or a simple find and replace
@@ -201,6 +419,7 @@ void do_preprocessor_define(dynamic_array* tokens, int start, int end)
             break;
         }
     }
+    da_append(defines, name->data, char*);
 
     bool is_macro = false;
     token* next = ((token**)tokens->data)[i + 1];
@@ -217,16 +436,35 @@ void do_preprocessor_define(dynamic_array* tokens, int start, int end)
         replace_tokens(tokens, name, i + 2, tokens->count, i + 2, end + 1);
         remove_tokens(tokens, start, end);
     }
+
+    for (int i = 0; i < defines->count; i++) {
+        printf("defined: %s\n", ((char**)defines->data)[i]);
+    }
     
 }
 
-void do_preprocessor(dynamic_array* tokens, int start, int key)
+void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int key)
 {
     str_enum_map p = preprocessors[key];
     switch (p.t) {
     case PRE_PROCESS_DEFINE: {
         int end = get_end_of_define(tokens, start);
-        do_preprocessor_define(tokens, start, end);
+        do_preprocessor_define(tokens, defines, start, end);
+        break;
+    }
+    case PRE_PROCESS_UNDEF: {
+        int end = get_end_of_line(tokens, start);
+        do_preprocessor_undefine(tokens, defines, start, end);
+        break;
+    }
+    case PRE_PROCESS_IFNDEF: {
+        int end = get_end_of_line(tokens, start);
+        do_preprocessor_ifndef(tokens, defines, include_paths, start, end);
+        break;
+    }
+    case PRE_PROCESS_INCLUDE: {
+        int end = get_end_of_line(tokens, start);
+        do_preprocessor_include(tokens, defines, include_paths, start, end);
         break;
     }
     default: {
@@ -235,13 +473,18 @@ void do_preprocessor(dynamic_array* tokens, int start, int key)
     }
 }
 
-void preprocess_file(dynamic_array* tokens)
+void preprocess_file(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths)
 {
-    
     for (int i = 0; i < tokens->count; i++) {
         int key = get_preproccessor(tokens, i);
         if (key != -1) {
-            do_preprocessor(tokens, i, key);
+            //printf("START ----------------\n");
+            //for (int i = 0; i < tokens->count; i++) {
+            //    printf("%s", ((token**)tokens->data)[i]->data);
+            //}
+            //printf("DONE ----------------\n");
+            do_preprocessor(tokens, defines, include_paths, i, key);
+
         }
     }
 

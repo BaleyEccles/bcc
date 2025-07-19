@@ -127,9 +127,7 @@ int main(int argc, char *argv[])
     int input_file_size = ftell(input_file);
     rewind(input_file);
 
-    
 
-    int pos = 0;
     dynamic_array tokens;
     da_init(&tokens, token*);
     dynamic_array types;
@@ -137,26 +135,33 @@ int main(int argc, char *argv[])
     dynamic_array functions;
     da_init(&functions, AST_node*);
     context ctx = {&tokens, &types, &functions};
-    
+
+    int pos = 0;
     while (pos < input_file_size) {
         token* t = get_next_token(input_file, &pos);
         da_append(&tokens, t, token*);
     }
 
-
-
-    
-    // Generate default types    
+    // Generate default types
     generate_default_types(&types);
+
     
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
     }
 
     
     // Pre proccess
-    preprocess_file(&tokens);
+    dynamic_array defines;
+    da_init(&defines, char*);
+
+    dynamic_array include_paths;
+    da_init(&include_paths, char*);
+    da_append(&include_paths, "/usr/include", char*);
+
+    remove_comments(&tokens);
+    preprocess_file(&tokens, &defines, &include_paths);
     clean_tokens(&tokens);
     
 
@@ -167,9 +172,7 @@ int main(int argc, char *argv[])
         //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
-    
 
-    
     // Generate AST
     generate_functions(&ctx);
 

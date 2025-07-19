@@ -322,6 +322,7 @@ bool is_token_end(char* str, char c_next)
         char c_start = str[0];
         is_end =
             c_next == ' '  ||
+            c_next == '\t' ||
             c_next == '\n' ||
             c_next == ';'  ||
             c_next == '}'  ||
@@ -337,6 +338,7 @@ bool is_token_end(char* str, char c_next)
             c_next == EOF;
         is_end =
             (c_start == ' '  ||
+             c_start == '\t' ||
              c_start == '\n' ||
              c_start == ';'  ||
              c_start == '}'  ||
@@ -368,7 +370,6 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
     rewind(f);
     
     if (is_token_end(current_str, c_next)) {
-        
         *start_pos += len;
         return true;
     }
@@ -411,7 +412,7 @@ void remove_bad_chars(char* data)
 
         int len = strlen(data);
         for (int i = 0; i < len; i++) {
-            if (data[i] == ' ' || data[i] == '\n') {
+            if (data[i] == ' ' || data[i] == '\t' || data[i] == '\n') {
                 for (int j = i; j < len; j++) {
                     data[j] = data[j + 1];
                 }
@@ -429,6 +430,10 @@ void clean_tokens(dynamic_array* tokens)
         if (t->data == NULL) {
             t->data = "";
         }
+
+        if (strcmp(t->data, "\\") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "\n") == 0) {
+            t->data = "";
+        }
         
         remove_bad_chars(t->data);
         // remove empty tokens 
@@ -441,6 +446,29 @@ void clean_tokens(dynamic_array* tokens)
         }
     }
 }
+
+void remove_comments(dynamic_array* tokens)
+{
+    for (int i = 0; i < tokens->count; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "//") == 0) {
+            while (strcmp(t->data, "\n") != 0) {
+                t->data = "";
+                i++;
+                t = ((token**)tokens->data)[i];
+            }
+        }
+        if (strcmp(t->data, "/") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "*") == 0 ) {
+            while (strcmp(t->data, "*/") != 0) {
+                t->data = "";
+                i++;
+                t = ((token**)tokens->data)[i];
+            }
+            t->data = "";
+        }
+    }
+}
+
 
 
 type* get_type_from_str(dynamic_array* types, char* str)

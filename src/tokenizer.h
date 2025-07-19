@@ -135,6 +135,7 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos);
 token* get_next_token(FILE* f, int* start_pos);
 void remove_bad_chars(char* data);
 void clean_tokens(dynamic_array* tokens);
+void remove_comments(dynamic_array* tokens);
 
 type* get_number_type(dynamic_array* types, token* t);
 type* get_string_type(dynamic_array* types);
