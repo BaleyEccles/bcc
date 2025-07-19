@@ -79,7 +79,6 @@ void replace_tokens_with_array(dynamic_array* tokens_dst, token* t, int start_ra
         token* current_token = ((token**)tokens_dst->data)[i];
         if (strcmp(current_token->data, t->data) == 0) {
             da_shift(tokens_dst, token*, i, len - 1);
-            
             for (int j = 0; j < len; j++) {
                 ((token**)tokens_dst->data)[j + i] = ((token**)tokens_src->data)[j];
             }
@@ -119,7 +118,19 @@ void remove_tokens(dynamic_array* tokens, int start, int end)
     }
 }
 
-void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start, int macro_input_end, int start, int end)
+void create_define(dynamic_array* tokens, define* d, int start, int end)
+{
+    d->inputs = NULL;
+    
+    dynamic_array* define_output = malloc(sizeof(dynamic_array));
+    da_init(define_output, token*);    
+    for (int i = start; i < end; i++) {
+        da_append(define_output, ((token**)tokens->data)[i], token*);
+    }
+    d->output = define_output;
+}
+
+void create_macro(dynamic_array* tokens, define* d, int macro_input_start, int macro_input_end, int end)
 {
     dynamic_array* macro_inputs = malloc(sizeof(dynamic_array));
     da_init(macro_inputs, token*);
@@ -127,11 +138,6 @@ void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start
         da_append(macro_inputs, ((token**)tokens->data)[i], token*);
     }
     clean_tokens(macro_inputs);
-    // macro_inputs:
-    // [a] [,] [b] [,] [c] ...
-
-
-    // Remove commas
     for (int i = 0; i < macro_inputs->count; i++) {
         if (strcmp(((token**)macro_inputs->data)[i]->data, ",") == 0) {
             for (int j = i; j < macro_inputs->count; j++) {
@@ -143,54 +149,14 @@ void replace_tokens_macro(dynamic_array* tokens, token* t, int macro_input_start
     }
     // macro_inputs:
     // [a] [b] [c] ...
+    d->inputs = macro_inputs;
 
-    
-    for (int i = start; i < tokens->count; i++) {
-        token* current_token = ((token**)tokens->data)[i];
-        if (strcmp(current_token->data, t->data) == 0) {
-            if (strcmp(((token**)tokens->data)[i + 1]->data, "(") != 0) {
-                fprintf(stderr, "%s:%d: error: Next token is not a ( for macro %s, %i\n", __FILE__, __LINE__, current_token->data, current_token->pos_in_file);
-            }
-            dynamic_array* inputs = malloc(sizeof(dynamic_array));
-            da_init(inputs, dynamic_array*);
-            int loc = i + 2;
-            int macro_end = get_closing_paren_location(tokens, loc - 1);
-            while (loc < macro_end) {
-                dynamic_array* input = malloc(sizeof(dynamic_array));
-                da_init(input, token*);
-                int comma_loc = find_comma(tokens, loc, macro_end - 1);
-                if (token_is_parentheses(((token**)tokens->data)[comma_loc + 1])) {
-                    comma_loc++;
-                }
-                                                                               
-                for (int j = loc; j < comma_loc; j++) {
-                    da_append(input, ((token**)tokens->data)[j], token*);
-                }
-                da_append(inputs, input, dynamic_array*);
-                loc = comma_loc + 1;
-            }
-
-            if (inputs->count != macro_inputs->count) {
-                fprintf(stderr, "%s:%d: error: Mismatched input counts for macro %s %i with %i inputs and %s %i with %i inputs\n", __FILE__, __LINE__, t->data, t->pos_in_file, macro_inputs->count, current_token->data, current_token->pos_in_file, inputs->count);
-            }
-
-            // We now have a mapping from definition inputs to application inputs
-            // a -> [1 + 2]
-            // b -> [5]
-            // ...
-            remove_tokens(tokens, i + 1, macro_end + 1);
-            replace_tokens(tokens, t, i, i + 1, start, end);
-            macro_end += end - start;
-            for (int j = 0; j < macro_inputs->count; j++) {
-                replace_tokens_with_array(tokens, ((token**)macro_inputs->data)[j], i, macro_end, ((dynamic_array**)inputs->data)[j]);
-                macro_end += ((dynamic_array**)inputs->data)[j]->count;
-            }
-            
-            
-            
-        }
+    dynamic_array* macro_output = malloc(sizeof(dynamic_array));
+    da_init(macro_output, token*);    
+    for (int i = macro_input_end + 1; i < end; i++) {
+        da_append(macro_output, ((token**)tokens->data)[i], token*);
     }
-    
+    d->output = macro_output;
 }
 
 char* get_path(dynamic_array* paths, char* name) {
@@ -276,13 +242,13 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
     token* endif_token = ((token**)tokens->data)[endif_token_loc];
     
     bool defined = false;
-    for (int i = 0; i < defines->count; i++) {
-        char* str = ((char**)defines->data)[i];
-        if (strcmp(str, define_token->data)) {
-            defined = true;
-            break;
-        }
-    }
+    //for (int i = 0; i < defines->count; i++) {
+    //    define* str = ((define**)defines->data)[i];
+    //    if (strcmp(str, define_token->data)) {
+    //        defined = true;
+    //        break;
+    //    }
+    //}
     if (defined) {
         remove_tokens(tokens, start, endif_token_loc);
     } else {
@@ -307,8 +273,6 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
 {
     char* include_name;
     token* include_token;
-    int name_start = 0;
-    int name_end = 0;
     for (int i = start; i < end; i++) {
         token* t = ((token**)tokens->data)[i];
         if ((t->data[0] == '<' && t->data[strlen(t->data) - 1] == '>') ||
@@ -344,7 +308,6 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
             break;
         }
     }
-    printf("file: %s\n", include_name);
     
     bool external_file = false;
     if (include_name[0] == '<') {
@@ -362,7 +325,6 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
     }
     
     char* file_name = get_path(include_paths, include_name);
-    printf("path %s\n", file_name);
 
 
     FILE* file = fopen(file_name, "r");
@@ -378,6 +340,7 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
         token* t = get_next_token(file, &pos);
         da_append(&file_tokens, t, token*);
     }
+    untabbify_tokens(&file_tokens);
     remove_comments(&file_tokens);
     preprocess_file(&file_tokens, defines, include_paths);
     replace_tokens_with_array(tokens, include_token, start, end, &file_tokens);
@@ -386,16 +349,83 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
 
 void do_preprocessor_undefine(dynamic_array* tokens, dynamic_array* defines, int start, int end)
 {
-    //token* name;
-    //for (int i = i + 1; i < tokens->count; i++) {
-    //    name = ((token**)tokens->data)[i];
-    //    if (strcmp(name->data, " ") != 0) {
-    //        break;
-    //    }
-    //}
-    //
-    //for (int i = 0; i < defines->count; i++) {
-    //}
+    token* undef;
+    int i = start;
+    for (i = start; i < end; i++) {
+        undef = ((token**)tokens->data)[i];
+        if (strcmp(undef->data, "undef") == 0) {
+            break;
+        }
+    }
+    
+    token* name;
+    i++;
+    for (i = i; i < end; i++) {
+        name = ((token**)tokens->data)[i];
+        if (strcmp(name->data, " ") != 0) {
+            break;
+        }
+    }
+    
+    for (int j = 0; j < defines->count; j++) {
+        define* d = ((define**)defines->data)[j];
+        if (d != NULL) {
+            if (strcmp(d->name->data, name->data) == 0) {
+                ((define**)defines->data)[j] = NULL; // TODO: Memory leak
+            }
+        }
+    }
+    remove_tokens(tokens, start, end);
+}
+
+
+void replace_token_with_define(dynamic_array* tokens, define* d, int loc)
+{
+    token* current_token = ((token**)tokens->data)[loc];
+    if (d->inputs != NULL) {
+        if (strcmp(((token**)tokens->data)[loc + 1]->data, "(") != 0) {
+            fprintf(stderr, "%s:%d: error: Next token is not a ( for macro %s, %i\n", __FILE__, __LINE__, current_token->data, current_token->pos_in_file);
+        }
+        
+        dynamic_array* inputs = malloc(sizeof(dynamic_array)); // TODO: Memory leak
+        da_init(inputs, dynamic_array*);
+        int input_loc = loc + 2;
+        int macro_end = get_closing_paren_location(tokens, input_loc - 1);
+        while (input_loc < macro_end) {
+            dynamic_array* input = malloc(sizeof(dynamic_array));
+            da_init(input, token*);
+            int comma_loc = find_comma(tokens, input_loc, macro_end - 1);
+            if (token_is_parentheses(((token**)tokens->data)[comma_loc + 1])) {
+                comma_loc++;
+            }
+                                                                               
+            for (int j = input_loc; j < comma_loc; j++) {
+                da_append(input, ((token**)tokens->data)[j], token*);
+            }
+            da_append(inputs, input, dynamic_array*);
+            input_loc = comma_loc + 1;
+        }
+
+        if (inputs->count != d->inputs->count) {
+            fprintf(stderr, "%s:%d: error: Mismatched input counts for macro %s %i with %i inputs and %s %i with %i inputs\n", __FILE__, __LINE__, current_token->data, current_token->pos_in_file, d->inputs->count, current_token->data, current_token->pos_in_file, inputs->count);
+        }
+
+        // We now have a mapping from definition inputs to application inputs
+        // a -> [1 + 2]
+        // b -> [5]
+        // ...
+        remove_tokens(tokens, loc + 1, macro_end + 1); // Remove macro inputs
+        replace_tokens_with_array(tokens, current_token, loc - 1, loc + 1, d->output); // Replace macro name with macro output
+        
+        // Replace each input with each stored input
+        macro_end += d->output->count;
+        for (int j = 0; j < d->inputs->count; j++) {
+            replace_tokens_with_array(tokens, ((token**)d->inputs->data)[j], loc, macro_end, ((dynamic_array**)inputs->data)[j]);
+            macro_end += ((dynamic_array**)inputs->data)[j]->count;
+        }
+    } else {
+        replace_tokens_with_array(tokens, current_token, loc, loc + 1, d->output); // Replace define name with define output
+    }
 }
 
 void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int start, int end)
@@ -419,7 +449,8 @@ void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int s
             break;
         }
     }
-    da_append(defines, name->data, char*);
+    define* d = malloc(sizeof(define));
+    d->name = name;
 
     bool is_macro = false;
     token* next = ((token**)tokens->data)[i + 1];
@@ -430,17 +461,15 @@ void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int s
     if (is_macro) {
         int macro_inputs_start = i + 1;
         int macro_inputs_end = get_closing_paren_location(tokens, i + 1);
-        replace_tokens_macro(tokens, name, macro_inputs_start + 1, macro_inputs_end, macro_inputs_end + 1, end);
+        create_macro(tokens, d, macro_inputs_start + 1, macro_inputs_end, end);
         remove_tokens(tokens, start, end);
     } else {
-        replace_tokens(tokens, name, i + 2, tokens->count, i + 2, end + 1);
+        create_define(tokens, d, i + 1, end);
         remove_tokens(tokens, start, end);
     }
-
-    for (int i = 0; i < defines->count; i++) {
-        printf("defined: %s\n", ((char**)defines->data)[i]);
-    }
     
+    
+    da_append(defines, d, define*);
 }
 
 void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int key)
@@ -475,19 +504,24 @@ void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
 
 void preprocess_file(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths)
 {
+
     for (int i = 0; i < tokens->count; i++) {
+        token* t = ((token**)tokens->data)[i];
         int key = get_preproccessor(tokens, i);
         if (key != -1) {
-            //printf("START ----------------\n");
-            //for (int i = 0; i < tokens->count; i++) {
-            //    printf("%s", ((token**)tokens->data)[i]->data);
-            //}
-            //printf("DONE ----------------\n");
+            
             do_preprocessor(tokens, defines, include_paths, i, key);
-
         }
+        for (int j = 0; j < defines->count; j++) {
+            define* d = ((define**)defines->data)[j];
+            if (d != NULL) {
+                if (strcmp(d->name->data, t->data) == 0) {
+                    replace_token_with_define(tokens, d, i);
+                }
+            }
+        }
+        
     }
-
 }
 
 

@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #define TEST 1
 
 #undef TEST

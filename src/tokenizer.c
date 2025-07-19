@@ -79,6 +79,7 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
         i++;
         if (i >= tokens->count) {
             fprintf(stderr, "%s:%d: error: Unable to find closing paren for %s, at index %i and location %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, starting_token_location, ((token**)tokens->data)[starting_token_location]->pos_in_file);
+            *(int*)0 = 0;
         }
         switch (token_type) {
         case PAREN_OPEN: {
@@ -423,8 +424,19 @@ void remove_bad_chars(char* data)
     }
 }
 
+void untabbify_tokens(dynamic_array* tokens)
+{
+    for (int i = 0; i < tokens->count; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "\t") == 0) {
+            t->data = " ";
+        }
+    }
+}
+
 void clean_tokens(dynamic_array* tokens)
 {
+    untabbify_tokens(tokens);
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (t->data == NULL) {
