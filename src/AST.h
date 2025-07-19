@@ -97,5 +97,6 @@ void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int 
 AST_node* create_function_node(context* ctx, int location);
 void generate_functions(context* ctx);
 int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
+int evaluate_node(AST_node* n);
 
 #endif // AST_H

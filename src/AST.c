@@ -799,3 +799,44 @@ int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
     return stack_size;
     
 }
+
+
+// This will be useful if we do constant folding
+int evaluate_node(AST_node* n)
+{
+    if (n->children->count == 0) {
+        return strtol(n->token->data, NULL, 10);
+    } else {
+        if (n->children->count != 2) {
+            fprintf(stderr, "%s:%d: error: Evaluating expression with not two nodes\n", __FILE__, __LINE__);
+        }
+        int left = evaluate_node(((AST_node**)n->children->data)[0]);
+        int right = evaluate_node(((AST_node**)n->children->data)[1]);
+        
+        TOKEN_TYPE ty = ((operator*)n->data)->type;
+        switch (ty) {
+        case PLUS: {
+            return left + right;
+            break;
+        }
+        case MINUS: {
+            return left - right;
+            break;
+        }
+        case LOGICAL_AND: {
+            return left && right;
+            break;
+        }
+        case LOGICAL_OR: {
+            return left || right;
+            break;
+        }
+        default: {
+            fprintf(stderr, "%s:%d: todo: Evaluating %s %i is not handled\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file);
+            break;
+        }
+        }
+            
+    }
+}
+

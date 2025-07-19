@@ -535,6 +535,9 @@ int find_comma(dynamic_array* tokens, int start, int end)
 
 type* get_number_type(dynamic_array* types, token* t)
 {
+    if (types == NULL) {
+        return NULL;
+    }
     for (int i = 0; i < types->count; i++) {
         type* ty = ((type**)types->data)[i];
         // TOOD: other types than int, like float/double

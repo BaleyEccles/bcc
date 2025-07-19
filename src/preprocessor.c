@@ -1,17 +1,5 @@
 #include "preprocessor.h"
 
-typedef enum {
-    PRE_PROCESS_DEFINE,
-    PRE_PROCESS_INCLUDE,
-    PRE_PROCESS_IF,
-    PRE_PROCESS_ELSE,
-    PRE_PROCESS_ELIF,
-    PRE_PROCESS_IFDEF,
-    PRE_PROCESS_IFNDEF,
-    PRE_PROCESS_ENDIF,
-    PRE_PROCESS_UNDEF,
-} PREPROCESSORS;
-
 typedef struct {
     PREPROCESSORS t;
     char* str;
@@ -181,6 +169,12 @@ char* get_path(dynamic_array* paths, char* name) {
     return "";
 }
 
+int find_else(dynamic_array* tokens, int start)
+{
+    // TODO: similar to find_endif
+    return -1;
+}
+
 int find_endif(dynamic_array* tokens, int start)
 {
     int loc = 0;
@@ -225,7 +219,6 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
             break;
         }
     }
-    int endif_loc = find_endif(tokens, ifndef_token_loc + 1);
 
     token* define_token;
     int define_token_loc;
@@ -281,7 +274,6 @@ void do_preprocessor_ifdef(dynamic_array* tokens, dynamic_array* defines, dynami
             break;
         }
     }
-    int endif_loc = find_endif(tokens, ifdef_token_loc + 1);
 
     token* define_token;
     int define_token_loc;
@@ -321,6 +313,101 @@ void do_preprocessor_ifdef(dynamic_array* tokens, dynamic_array* defines, dynami
             }
         }
         remove_tokens(tokens, endif_hash_loc, endif_token_loc + 1);
+    }
+}
+
+int evaluate_expression(dynamic_array* tokens, dynamic_array* defines, int start, int end)
+{
+    dynamic_array* ts = malloc(sizeof(dynamic_array));
+    da_init(ts, token*);
+    for (int i = start; i < end + 1; i++) {
+        da_append(ts, ((token**)tokens->data)[i], token*);
+    }
+    clean_tokens(ts);
+   
+    for (int i = 0; i < ts->count; i++) {
+        token* t = ((token**)ts->data)[i];
+        if (strcmp(t->data, "defined") == 0) {
+            int loc = i + 1;
+            int end_defined = loc;
+            token* t2 = ((token**)ts->data)[loc];
+            if (strcmp(t2->data, "(") == 0) {
+                loc += 1;
+                end_defined = loc + 1;
+                t2 = ((token**)ts->data)[loc];
+            }
+            bool defined = false;
+            for (int j = 0; j < defines->count; j++) {
+                define* d = ((define**)defines->data)[j];
+                if (d != NULL) {
+                    if (strcmp(t2->data, d->name->data) == 0) {
+
+                        defined = true;
+                        break;
+                    }
+                }
+            }
+            dynamic_array* da = malloc(sizeof(dynamic_array));
+            da_init(da, token*);
+            if (defined) {
+                token* token_defined = malloc(sizeof(token));
+                token_defined->data = "1";
+                da_append(da, token_defined, token*);
+
+            } else {
+                token* token_defined = malloc(sizeof(token));
+                token_defined->data = "0";
+                da_append(da, token_defined, token*);
+            }
+            
+            replace_tokens_with_array(ts, t2, loc, end_defined, da);
+            remove_tokens(ts, i, i + 1);
+            
+        }
+    }
+
+    for (int i = 0; i < ts->count; i++) {
+        token* t = ((token**)ts->data)[i];
+        for (int j = 0; j < defines->count; j++) {
+            define* d = ((define**)defines->data)[j];
+            if (d != NULL) {
+                if (strcmp(d->name->data, t->data) == 0) {
+                    replace_token_with_define(ts, d, i);
+                }
+            }
+        }
+    }
+    clean_tokens(ts);
+    
+    context ctx = {
+        ts,
+        NULL,
+        NULL
+    };
+
+    AST_node* n = create_expression_node(NULL, &ctx, 0, ts->count - 1);
+    return evaluate_node(n);
+
+}
+
+void do_preprocessor_if(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+{
+    token* if_token;
+    int if_token_loc;
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "if") == 0) {
+            if_token = t;
+            if_token_loc = i;
+            break;
+        }
+    }
+    
+    int endif_token_loc = find_endif(tokens, if_token_loc + 1);
+    token* endif_token = ((token**)tokens->data)[endif_token_loc];
+
+    int val = evaluate_expression(tokens, defines, if_token_loc + 1, end);
+    if (val == 0) {
     }
 }
 
@@ -551,6 +638,11 @@ void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
     case PRE_PROCESS_IFNDEF: {
         int end = get_end_of_line(tokens, start);
         do_preprocessor_ifndef(tokens, defines, include_paths, start, end);
+        break;
+    }
+    case PRE_PROCESS_IF: {
+        int end = get_end_of_define(tokens, start);
+        do_preprocessor_if(tokens, defines, include_paths, start, end);
         break;
     }
     case PRE_PROCESS_INCLUDE: {
