@@ -208,6 +208,7 @@ int find_endif(dynamic_array* tokens, int start)
         }
     }
     fprintf(stderr, "%s:%d: error: Unable to find endif for %s %i\n", __FILE__, __LINE__, ((token**)tokens->data)[start]->data, ((token**)tokens->data)[start]->pos_in_file);
+    *(int*)0 = 0;
     return -1;
 }
 
@@ -242,15 +243,17 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
     token* endif_token = ((token**)tokens->data)[endif_token_loc];
     
     bool defined = false;
-    //for (int i = 0; i < defines->count; i++) {
-    //    define* str = ((define**)defines->data)[i];
-    //    if (strcmp(str, define_token->data)) {
-    //        defined = true;
-    //        break;
-    //    }
-    //}
+    for (int i = 0; i < defines->count; i++) {
+        define* d = ((define**)defines->data)[i];
+        if (d != NULL) {
+            if (strcmp(d->name->data, define_token->data) == 0) {
+                defined = true;
+                break;
+            }
+        }
+    }
     if (defined) {
-        remove_tokens(tokens, start, endif_token_loc);
+        remove_tokens(tokens, start, endif_token_loc + 1);
     } else {
         remove_tokens(tokens, start, end);
         int endif_hash_loc = -1;
@@ -263,8 +266,62 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
         }
         remove_tokens(tokens, endif_hash_loc, endif_token_loc + 1);
     }
+}
+// GIGA repetition above and below
+void do_preprocessor_ifdef(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+{
 
+    token* ifdef_token;
+    int ifdef_token_loc;
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, "ifdef") == 0) {
+            ifdef_token = t;
+            ifdef_token_loc = i;
+            break;
+        }
+    }
+    int endif_loc = find_endif(tokens, ifdef_token_loc + 1);
 
+    token* define_token;
+    int define_token_loc;
+    for (int i = ifdef_token_loc + 1; i < end; i++) {
+        token* t1 = ((token**)tokens->data)[i - 1];
+        token* t2 = ((token**)tokens->data)[i + 0];
+        if (strcmp(t1->data, " ") == 0 && strcmp(t2->data, " ") != 0) {
+            define_token = t2;
+            define_token_loc = i;
+            break;
+        }
+    }
+    
+    int endif_token_loc = find_endif(tokens, ifdef_token_loc + 1);
+    token* endif_token = ((token**)tokens->data)[endif_token_loc];
+    
+    bool defined = false;
+    for (int i = 0; i < defines->count; i++) {
+        define* d = ((define**)defines->data)[i];
+        if (d != NULL) {
+            if (strcmp(d->name->data, define_token->data) == 0) {
+                defined = true;
+                break;
+            }
+        }
+    }
+    if (!defined) {
+        remove_tokens(tokens, start, endif_token_loc + 1);
+    } else {
+        remove_tokens(tokens, start, end);
+        int endif_hash_loc = -1;
+        for (int i = endif_token_loc; i >= start; i--) {
+            token* t = ((token**)tokens->data)[i];
+            if (strcmp(t->data, "#") == 0) {
+                endif_hash_loc = i;
+                break;
+            }
+        }
+        remove_tokens(tokens, endif_hash_loc, endif_token_loc + 1);
+    }
 }
 
 
@@ -486,6 +543,11 @@ void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
         do_preprocessor_undefine(tokens, defines, start, end);
         break;
     }
+    case PRE_PROCESS_IFDEF: {
+        int end = get_end_of_line(tokens, start);
+        do_preprocessor_ifdef(tokens, defines, include_paths, start, end);
+        break;
+    }
     case PRE_PROCESS_IFNDEF: {
         int end = get_end_of_line(tokens, start);
         do_preprocessor_ifndef(tokens, defines, include_paths, start, end);
@@ -521,6 +583,9 @@ void preprocess_file(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
             }
         }
         
+    }
+    for (int i = 0; i < tokens->count; i++) {
+        printf("%s", ((token**)tokens->data)[i]->data);
     }
 }
 
