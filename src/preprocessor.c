@@ -238,18 +238,57 @@ int find_hash(dynamic_array* tokens, int endif_token_loc)
     return -1;
 }
 
-void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+void do_block(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int val, int start, int end, int token_loc, int endif_token_loc)
 {
+    if (val == 0) {
+        int next_cond = find_else(tokens, token_loc, endif_token_loc);
+        int next_cond_hash = find_hash(tokens, next_cond);
+        remove_tokens(tokens, start, next_cond_hash - 1);
+        
+        int key = get_preproccessor(tokens, next_cond_hash);
+        do_preprocessor(tokens, defines, include_paths, next_cond_hash, key);
+    } else {
+        int endif_hash = find_hash(tokens, endif_token_loc);
+        int next_cond = find_else(tokens, token_loc, endif_token_loc);
+        int next_cond_hash = find_hash(tokens, next_cond);
+        
+        remove_tokens(tokens, start, end);
+        remove_tokens(tokens, next_cond_hash, endif_hash);
+        remove_tokens(tokens, endif_hash, endif_token_loc + 1);
+    }
+}
 
-    int ifndef_token_loc;
-    for (int i = start; i < end; i++) {
-        token* t = ((token**)tokens->data)[i];
-        if (strcmp(t->data, "ifndef") == 0) {
-            ifndef_token_loc = i;
-            break;
+bool is_defined(dynamic_array* defines, token* define_token)
+{
+    bool defined = false;
+    for (int i = 0; i < defines->count; i++) {
+        define* d = ((define**)defines->data)[i];
+        if (d != NULL) {
+            if (strcmp(d->name->data, define_token->data) == 0) {
+                defined = true;
+                break;
+            }
         }
     }
+    return defined;
+}
 
+int find_token_loc(dynamic_array* tokens, int start, int end, char* name)
+{
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (strcmp(t->data, name) == 0) {
+            return i;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: Unable to find %s\n", __FILE__, __LINE__, name);
+    return -1;
+}
+
+void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
+{
+    
+    int ifndef_token_loc = find_token_loc(tokens, start, end, "ifndef");
 
     token* define_token;
     for (int i = ifndef_token_loc + 1; i < end; i++) {
@@ -263,45 +302,15 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
     
     int endif_token_loc = find_endif(tokens, ifndef_token_loc + 1);
     
-    bool defined = false;
-    for (int i = 0; i < defines->count; i++) {
-        define* d = ((define**)defines->data)[i];
-        if (d != NULL) {
-            if (strcmp(d->name->data, define_token->data) == 0) {
-                defined = true;
-                break;
-            }
-        }
-    }
-    if (defined) {
-        int next_cond = find_else(tokens, ifndef_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-        remove_tokens(tokens, start, next_cond_hash - 1);
-        int key = get_preproccessor(tokens, next_cond_hash);
-        do_preprocessor(tokens, defines, include_paths, next_cond_hash, key);
-    } else {
-        int endif_hash = find_hash(tokens, endif_token_loc);
-        int next_cond = find_else(tokens, ifndef_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-
-        remove_tokens(tokens, start, end);
-        remove_tokens(tokens, next_cond_hash, endif_hash);
-        remove_tokens(tokens, endif_hash, endif_token_loc + 1);
-        
-    }
+    bool defined = is_defined(defines, define_token);
+    
+    do_block(tokens, defines, include_paths, !defined, start, end, ifndef_token_loc, endif_token_loc);
 }
 // GIGA repetition above and below
 void do_preprocessor_ifdef(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
 {
 
-    int ifdef_token_loc;
-    for (int i = start; i < end; i++) {
-        token* t = ((token**)tokens->data)[i];
-        if (strcmp(t->data, "ifdef") == 0) {
-            ifdef_token_loc = i;
-            break;
-        }
-    }
+    int ifdef_token_loc = find_token_loc(tokens, start, end, "ifdef");
 
     token* define_token;
     for (int i = ifdef_token_loc + 1; i < end; i++) {
@@ -315,31 +324,9 @@ void do_preprocessor_ifdef(dynamic_array* tokens, dynamic_array* defines, dynami
     
     int endif_token_loc = find_endif(tokens, ifdef_token_loc + 1);
     
-    bool defined = false;
-    for (int i = 0; i < defines->count; i++) {
-        define* d = ((define**)defines->data)[i];
-        if (d != NULL) {
-            if (strcmp(d->name->data, define_token->data) == 0) {
-                defined = true;
-                break;
-            }
-        }
-    }
-    if (!defined) {
-        int next_cond = find_else(tokens, ifdef_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-        remove_tokens(tokens, start, next_cond_hash - 1);
-        int key = get_preproccessor(tokens, next_cond_hash);
-        do_preprocessor(tokens, defines, include_paths, next_cond_hash, key);
-    } else {
-        int endif_hash = find_hash(tokens, endif_token_loc);
-        int next_cond = find_else(tokens, ifdef_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-        
-        remove_tokens(tokens, start, end);
-        remove_tokens(tokens, next_cond_hash, endif_hash);
-        remove_tokens(tokens, endif_hash, endif_token_loc + 1);
-    }
+    bool defined = is_defined(defines, define_token);
+    
+    do_block(tokens, defines, include_paths, defined, start, end, ifdef_token_loc, endif_token_loc);
 }
 
 int evaluate_expression(dynamic_array* tokens, dynamic_array* defines, int start, int end)
@@ -418,90 +405,33 @@ int evaluate_expression(dynamic_array* tokens, dynamic_array* defines, int start
 
 void do_preprocessor_if(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
 {
-    int if_token_loc;
-    for (int i = start; i < end; i++) {
-        token* t = ((token**)tokens->data)[i];
-        if (strcmp(t->data, "if") == 0) {
-            if_token_loc = i;
-            break;
-        }
-    }
+    int if_token_loc = find_token_loc(tokens, start, end, "if");
     
     int endif_token_loc = find_endif(tokens, if_token_loc + 1);
     
     
     int val = evaluate_expression(tokens, defines, if_token_loc + 1, end);
-    if (val == 0) {
-        int next_cond = find_else(tokens, if_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-        remove_tokens(tokens, start, next_cond_hash - 1);
-        int key = get_preproccessor(tokens, next_cond_hash);
-        do_preprocessor(tokens, defines, include_paths, next_cond_hash, key);
-    } else {
-        int endif_hash = find_hash(tokens, endif_token_loc);
-        int next_cond = find_else(tokens, if_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-
-        remove_tokens(tokens, start, end);
-        remove_tokens(tokens, next_cond_hash, endif_hash);
-        remove_tokens(tokens, endif_hash, endif_token_loc + 1);
-    }
+    do_block(tokens, defines, include_paths, val, start, end, if_token_loc, endif_token_loc);
 }
 
 void do_preprocessor_elif(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
 {
-    int elif_token_loc;
-    for (int i = start; i < end; i++) {
-        token* t = ((token**)tokens->data)[i];
-        if (strcmp(t->data, "elif") == 0) {
-            elif_token_loc = i;
-            break;
-        }
-    }
+    int elif_token_loc = find_token_loc(tokens, start, end, "elif");
     
     int endif_token_loc = find_endif(tokens, elif_token_loc + 1);
     
     int val = evaluate_expression(tokens, defines, elif_token_loc + 1, end);
-    if (val == 0) {
-        int next_cond = find_else(tokens, elif_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-        remove_tokens(tokens, start, next_cond_hash - 1);
-        int key = get_preproccessor(tokens, next_cond_hash);
-        do_preprocessor(tokens, defines, include_paths, next_cond_hash, key);
-    } else {
-        int endif_hash = find_hash(tokens, endif_token_loc);
-        int next_cond = find_else(tokens, elif_token_loc, endif_token_loc);
-        int next_cond_hash = find_hash(tokens, next_cond);
-
-        remove_tokens(tokens, start, end);
-        remove_tokens(tokens, next_cond_hash, endif_hash);
-        remove_tokens(tokens, endif_hash, endif_token_loc + 1);
-    }
+    do_block(tokens, defines, include_paths, val, start, end, elif_token_loc, endif_token_loc);
+    
 }
 
 void do_preprocessor_else(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
 {
-    int else_token_loc;
-    for (int i = start; i < end; i++) {
-        token* t = ((token**)tokens->data)[i];
-        if (strcmp(t->data, "else") == 0) {
-            else_token_loc = i;
-            break;
-        }
-    }
+    int else_token_loc = find_token_loc(tokens, start, end, "else");
     
     int endif_token_loc = find_endif(tokens, else_token_loc + 1);
-
-    int endif_hash = find_hash(tokens, endif_token_loc);
-    int next_cond = find_else(tokens, else_token_loc, endif_token_loc);
-    int next_cond_hash = find_hash(tokens, next_cond);
-
-    remove_tokens(tokens, start, end);
-    remove_tokens(tokens, next_cond_hash, endif_hash);
-    remove_tokens(tokens, endif_hash, endif_token_loc + 1);
-    
+    do_block(tokens, defines, include_paths, true, start, end, else_token_loc, endif_token_loc);
 }
-
 
 
 void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
@@ -584,14 +514,7 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
 
 void do_preprocessor_undefine(dynamic_array* tokens, dynamic_array* defines, int start, int end)
 {
-    token* undef;
-    int i = start;
-    for (i = start; i < end; i++) {
-        undef = ((token**)tokens->data)[i];
-        if (strcmp(undef->data, "undef") == 0) {
-            break;
-        }
-    }
+    int i = find_token_loc(tokens, start, end, "undef");
     
     token* name;
     i++;
