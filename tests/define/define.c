@@ -5,8 +5,10 @@
 
 #ifndef NOT_DEFINED
 
-#ifdef TEST
-#define TEST2 1
+#ifdef NOT_DEFINED
+#define TEST2 5
+#else
+#define TEST2 2
 #endif
 
 #endif

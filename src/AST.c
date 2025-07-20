@@ -832,11 +832,13 @@ int evaluate_node(AST_node* n)
             break;
         }
         default: {
-            fprintf(stderr, "%s:%d: todo: Evaluating %s %i is not handled\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file);
+            fprintf(stderr, "%s:%d: todo: Evaluating %s %i is not handled yet\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file);
             break;
         }
         }
             
     }
+    fprintf(stderr, "%s:%d: error: Evaluating %s %i was not handled\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file);
+    return -1;
 }
 
