@@ -299,22 +299,10 @@ AST_node* create_ternery_node(AST_node* scope, context* ctx, int start, int end,
     }
     if (ternery_loc == -1) {
         fprintf(stderr, "%s:%d: error: Could not find ? in ternary expression\nThe location of the colon is %i\nThe tokens are:\n", __FILE__, __LINE__, colon_loc);
-        for (int i = start; i < end + 1; i++) {
-            token* t = ((token**)ctx->tokens->data)[i];
-            fprintf(stderr, "token %i: %s %i\n", i, t->data, t->pos_in_file);
-        }
     }
 
-    printf("%i %i\n", start, end);
-    for (int i = start; i < end + 1; i++) {
-        printf("token %i: %s\n", i, ((token**)ctx->tokens->data)[i]->data);
-    }
-    
-    printf("cond from %i to %i\n", start, ternery_loc - 1);
     AST_node* cond = create_expression_node(scope, ctx, start, ternery_loc - 1);
-    printf("expr1 from %i to %i\n", ternery_loc + 1, colon_loc - 1);
     AST_node* expr1 = create_expression_node(scope, ctx, ternery_loc + 1, colon_loc - 1);
-    printf("expr2 from %i to %i\n", colon_loc + 1, end);
     AST_node* expr2 = create_expression_node(scope, ctx, colon_loc + 1, end);
 
     // ? node
@@ -431,7 +419,6 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
 
     // There are no operators in the currnet token list
     // We have reached a constant number, string, char, etc. Now we must make and return it.
-    //printf("start loc: %i, end loc: %i\n", start, end);
     return create_constant_node(scope, ctx, start, end);
 }
 
@@ -710,6 +697,7 @@ int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* t
         token* t2 = ((token**)token_stack->data)[token_stack->count - 2];
         token* t3 = ((token**)token_stack->data)[token_stack->count - 1];
         if (t1->type == TYPE && t2->type == OTHER && t3->type == EQUALS) {
+            printf("hee: %s\n", t2->data);
             // char * i = ...;
             // Initalize varible
             create_varible_node(scope, node, ctx, t2);
@@ -764,7 +752,6 @@ void generate_function_inputs(context* ctx, AST_node* node, int start, int end)
         AST_node* fi = malloc(sizeof(AST_node));
         init_AST_node(fi);
         
-        
         fi->node_type = VARIBLE;
             
         varible* varible = malloc(sizeof(varible));
@@ -817,9 +804,15 @@ AST_node* create_function_node(context* ctx, int location)
 
 bool is_function_definition(context* ctx, dynamic_array* token_stack)
 {
+    for (int i = 0; i < token_stack->count; i++) {
+        printf("t: %s\n", ((token**)token_stack->data)[i]->data);
+    }
     if (token_stack->count >= 3) {
         token* t1 = ((token**)token_stack->data)[0];
         type* t = get_type(ctx->tokens, ctx->types, t1);
+        if (t == NULL) {
+            return false;
+        }
 
         if (token_stack->count < t->ptr_count + 2) {
             return false;
@@ -834,11 +827,151 @@ bool is_function_definition(context* ctx, dynamic_array* token_stack)
     return false;
 }
 
+
+//typedef union u_t1 {
+//    char a;
+//    int b;
+//    long c;
+//} u_t2; <- semicolon_loc
+//    ^ name_token
+void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
+{
+    token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
+    int opening_paren_loc = typedef_loc + 3;
+    int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
+
+    type* union_type = malloc(sizeof(type));
+    union_type->string = name_token->data;
+    union_type->type_type = UNION;
+    union_type->size = 0;
+    union_type->ptr_count = 0;
+    
+    union_data* u = malloc(sizeof(union_data));
+    u->varibles = malloc(sizeof(dynamic_array));
+    da_init(u->varibles, varible*);
+    for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
+        varible* var = malloc(sizeof(varible));
+        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
+        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
+        da_append(u->varibles, var, varible*);
+        i += var->type->ptr_count + 3;
+    }
+    for (int i = 0; i < u->varibles->count; i++) {
+        int size = ((varible**)u->varibles->data)[i]->type->size;
+        if (size > union_type->size) {
+            union_type->size = size;
+        }
+    }
+    union_type->data = (void*)u;
+    da_append(ctx->types, union_type, type*);
+    /*
+    printf("gen %s with size %i\n", union_type->string, union_type->size);
+    for(int i = 0; i < ((union_data*)union_type->data)->varibles->count; i++) {
+        printf("%s %i %s\n", ((varible**)((union_data*)union_type->data)->varibles->data)[i]->type->string,
+               ((varible**)((union_data*)union_type->data)->varibles->data)[i]->type->ptr_count,
+               ((varible**)((union_data*)union_type->data)->varibles->data)[i]->name);
+    }
+    */
+}
+
+void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
+{
+    token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
+    int opening_paren_loc = typedef_loc + 2;
+    int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
+
+    type* struct_type = malloc(sizeof(type));
+    struct_type->string = name_token->data;
+    struct_type->type_type = STRUCT;
+    struct_type->size = 0;
+    struct_type->ptr_count = 0;
+    
+    struct_data* u = malloc(sizeof(struct_data));
+    u->varibles = malloc(sizeof(dynamic_array));
+    da_init(u->varibles, varible*);
+    for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
+        varible* var = malloc(sizeof(varible));
+        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
+        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
+        da_append(u->varibles, var, varible*);
+        i += var->type->ptr_count + 3;
+    }
+    for (int i = 0; i < u->varibles->count; i++) {
+        int size = ((varible**)u->varibles->data)[i]->type->size;
+        struct_type->size += size;
+    }
+    struct_type->data = (void*)u;
+    da_append(ctx->types, struct_type, type*);
+    /*
+    printf("gen %s with size %i\n", struct_type->string, struct_type->size);
+    for(int i = 0; i < ((union_data*)struct_type->data)->varibles->count; i++) {
+        printf("%s %i %s\n", ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->type->string,
+               ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->type->ptr_count,
+               ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->name);
+    }
+    */
+}
+
+// typedef long_number long long;
+void generate_type_from_type(context* ctx, int typedef_loc, int semicolon_loc)
+{
+    token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
+    type* type_type = malloc(sizeof(type));
+    type_type->string = name_token->data;
+    type_type->type_type = TYPE;
+    type* t = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[typedef_loc + 1]);
+    type_type->ptr_count = 0;
+    type_type->size = t->size;
+    type_data* t_data = malloc(sizeof(type_data));
+    t_data->t = t;
+    da_append(ctx->types, type_type, type*);
+}
+
+void generate_type_from_typedef(context* ctx, int typedef_loc)
+{
+    int end = find_semi_colon_skip_parentheses(ctx->tokens, typedef_loc);
+    token* next = ((token**)ctx->tokens->data)[typedef_loc + 1];
+    if (token_is_key_word(next)) {
+        TOKEN_TYPE ty = next->type;
+        switch (ty) {
+        case UNION: {
+            generate_union(ctx, typedef_loc, end);
+            break;
+        }
+        case STRUCT: {
+            generate_struct(ctx, typedef_loc, end);
+            break;
+        }
+        default: {
+            fprintf(stderr, "%s:%d: todo: Generating type from %s is not handled yet\n", __FILE__, __LINE__, next->data);
+            break;
+        }
+        }
+    } else {
+        generate_type_from_type(ctx, typedef_loc, end);
+    }
+    
+
+}
+
+void generate_types(context* ctx)
+{
+    for (int i = 0; i < ctx->tokens->count; i++) {
+        token* t = ((token**)ctx->tokens->data)[i];
+        if (t->type == TYPEDEF) {
+            generate_type_from_typedef(ctx, i);
+        }
+    }
+}
+
 void generate_functions(context* ctx)
 {
     dynamic_array token_stack;
     da_init(&token_stack, token*);
     for (int i = 0; i < ctx->tokens->count; i++) {
+        if (((token**)ctx->tokens->data)[i]->type == TYPEDEF) {
+            i = find_semi_colon_skip_parentheses(ctx->tokens, i) + 1;
+        }
         da_append(&token_stack, ((token**)ctx->tokens->data)[i], token*);
         if (is_function_definition(ctx, &token_stack)) {
             token* t1 = ((token**)token_stack.data)[0];
@@ -854,8 +987,9 @@ void generate_functions(context* ctx)
                 
             i = function_end;
             token_stack.count = 0;
-
         }
+
+
     }
     free(token_stack.data);
 }
@@ -907,7 +1041,6 @@ int evaluate_node(AST_node* n)
         }
         
         TOKEN_TYPE ty = ((operator*)n->data)->type;
-        printf("%s %i\n", n->token->data, ty);
         switch (ty) {
         case PLUS: {
             return left + right;
@@ -954,10 +1087,8 @@ int evaluate_node(AST_node* n)
             break;
         }
         case TERNARY_CONDITIONAL: {
-            printf("tern cond\n");
             int cond = left;
             int expr1 = right;
-            printf("%s\n", ((AST_node**)n->children->data)[2]->token->data);
             int expr2 = evaluate_node(((AST_node**)n->children->data)[2]);
             return cond ? expr1 : expr2;
             break;

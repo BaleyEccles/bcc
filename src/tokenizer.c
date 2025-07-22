@@ -268,7 +268,7 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
             return ty;
         }
     }
-    fprintf(stderr, "%s:%d: error: Unable to find type from token %s in posistion %i \n", __FILE__, __LINE__, t->data, t->pos_in_file);
+
     return NULL;
 }
 
@@ -279,6 +279,7 @@ void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
         type* ty = malloc(sizeof(type));
         ty->ptr_count = ptr_count;
         ty->string = t->data;
+        ty->type_type = 0;
         if (ptr_count > 0) {
             ty->size = 8;
         } else {
@@ -519,6 +520,20 @@ int get_token_location(dynamic_array* tokens, token* t)
 }
 
 
+int find_semi_colon_skip_parentheses(dynamic_array* tokens, int start_location)
+{
+    for (int i = start_location; i < tokens->count; i++) {
+        token* t = ((token**)tokens->data)[i];
+        if (t != NULL) {
+            if (token_is_parentheses(t)) {
+                i = get_closing_paren_location(tokens, i);
+            } else if (strcmp(t->data, ";") == 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
 int find_semi_colon(dynamic_array* tokens, int start_location)
 {
     for (int i = start_location; i < tokens->count; i++) {
@@ -574,6 +589,7 @@ type* get_string_type(dynamic_array* types)
     type_string->string = "char";
     type_string->size = 1;
     type_string->ptr_count = 1;
+    type_string->type_type = 0;
     da_append(types, type_string, type*);
     return type_string;
     
@@ -604,6 +620,7 @@ type* get_dereferenced_type(dynamic_array* types, type* t)
         ty = malloc(sizeof(type));
         ty->ptr_count = t->ptr_count - 1;
         ty->string = t->string;
+        ty->type_type = 0;
         da_append(types, ty, type*);
     }
     return ty;

@@ -1,5 +1,7 @@
 
-int sum_chars(char* str, int str_size)
+typedef char* string;
+
+int sum_chars(string str, int str_size)
 {
     int result = 0;
     for (int i = 0; i < str_size; i++) {
@@ -11,11 +13,10 @@ int sum_chars(char* str, int str_size)
 
 int main()
 {
-    
     char* str = "abcdefg";
     int str_size = 7;
     
-    int output = sum_chars(str, str_size);
+    int output = sum_chars((string)str, str_size);
     
     return output - 700;
 }

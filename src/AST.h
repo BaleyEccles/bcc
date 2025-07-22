@@ -95,6 +95,7 @@ int create_key_word_node(AST_node* scope, AST_node* node, context* ctx, token* t
 int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* token_stack);
 void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int end);
 AST_node* create_function_node(context* ctx, int location);
+void generate_types(context* ctx);
 void generate_functions(context* ctx);
 int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
 int evaluate_node(AST_node* n);

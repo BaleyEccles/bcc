@@ -16,11 +16,8 @@
         strcpy(TOKEN->data, STR);               \
     }
 
-typedef struct {
-    char* string;
-    int size; // In bytes
-    int ptr_count;
-} type;
+
+
 
 typedef enum {
     ERROR = 0,
@@ -102,6 +99,27 @@ typedef enum {
 
 
 typedef struct {
+    char* string;
+    int size; // In bytes
+    int ptr_count;
+    TOKEN_TYPE type_type;
+    void* data;
+} type;
+
+typedef struct {
+    dynamic_array* varibles;
+} union_data;
+
+typedef struct {
+    dynamic_array* varibles;
+} struct_data;
+
+typedef struct {
+    type* t;
+} type_data;
+
+
+typedef struct {
     TOKEN_TYPE type;
     int pos_in_file;
     char* data;
@@ -114,6 +132,7 @@ typedef struct {
 
 int find_comma(dynamic_array* tokens, int start, int end);
 int find_semi_colon(dynamic_array* tokens, int start_location);
+int find_semi_colon_skip_parentheses(dynamic_array* tokens, int start_location);
 int get_token_location(dynamic_array* tokens, token* t);
 type* get_type_from_str(dynamic_array* types, char* str);
 bool token_is_type(token* t, dynamic_array* ts);

@@ -15,42 +15,49 @@ void generate_default_types(dynamic_array* ts)
     type_void->string = "void";
     type_void->size = 0;
     type_void->ptr_count = 0;
+    type_void->type_type = 0;
     da_append(ts, type_void, type*);
     
     type* type_bool = malloc(sizeof(type));
     type_bool->string = "bool";
     type_bool->size = 1;
     type_bool->ptr_count = 0;
+    type_bool->type_type = 0;
     da_append(ts, type_bool, type*);
 
     type* type_char = malloc(sizeof(type));
     type_char->string = "char";
     type_char->size = 1;
     type_char->ptr_count = 0;
+    type_char->type_type = 0;
     da_append(ts, type_char, type*);
 
     type* type_short = malloc(sizeof(type));
     type_short->string = "short";
     type_short->size = 2;
     type_short->ptr_count = 0;
+    type_short->type_type = 0;
     da_append(ts, type_short, type*);
 
     type* type_int = malloc(sizeof(type));
     type_int->string = "int";
     type_int->size = 2;
     type_int->ptr_count = 0;
+    type_int->type_type = 0;
     da_append(ts, type_int, type*);
 
     type* type_long = malloc(sizeof(type));
     type_long->string = "long";
     type_long->size = 4;
     type_long->ptr_count = 0;
+    type_long->type_type = 0;
     da_append(ts, type_long, type*);
 
     type* type_long_long = malloc(sizeof(type));
     type_long_long->string = "long long";
     type_long_long->size = 8;
     type_long_long->ptr_count = 0;
+    type_long_long->type_type = 0;
     da_append(ts, type_long_long, type*);
 
     // TODO: Floats/doubles
@@ -322,13 +329,16 @@ int main(int argc, char *argv[])
     }
 
     // Generate AST
+    generate_types(&ctx);
     generate_functions(&ctx);
 
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
         char* graph_name = malloc(sizeof(char)*(10 +strlen(((function*)f->data)->name)));
+
         
         sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
+        printf("f: %s\n", graph_name);
         generate_graphviz_from_AST_node(f, graph_name);
         free(graph_name);
     }
