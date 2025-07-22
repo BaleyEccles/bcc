@@ -1,6 +1,21 @@
 
 TEST_NAME=for_loop
 
+# clean
+rm ${TEST_NAME}_gcc.txt
+rm ${TEST_NAME}_bcc.txt
+rm ${TEST_NAME}_gcc
+rm ${TEST_NAME}_bcc
+
+rm ${TEST_NAME}_bcc.asm
+rm ${TEST_NAME}_bcc.o
+
+rm *.*~
+rm *.gv
+
+# run the test
+
+
 gcc -o ${TEST_NAME}_gcc ${TEST_NAME}.c
 ./${TEST_NAME}_gcc
 echo $? > ${TEST_NAME}_gcc.txt
