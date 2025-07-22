@@ -127,6 +127,7 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
             c->type = get_number_type(ctx->types, t);
         } else if (token_is_string(t)) {
             c->type = get_string_type(ctx->types);
+
         }
         c->value = t->data;
         node->data = (void*)c;

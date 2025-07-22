@@ -66,6 +66,7 @@ void replace_tokens_with_array(dynamic_array* tokens_dst, token* t, int start_ra
     int len = tokens_src->count;
     for (int i = start_range; i < end_range; i++) {
         token* current_token = ((token**)tokens_dst->data)[i];
+        printf("%i %i\n", i, len);
         if (strcmp(current_token->data, t->data) == 0) {
             da_shift(tokens_dst, token*, i, len - 1);
             for (int j = 0; j < len; j++) {
@@ -406,6 +407,14 @@ int evaluate_expression(dynamic_array* tokens, dynamic_array* defines, int start
             define* d = ((define**)defines->data)[j];
             if (d != NULL) {
                 if (strcmp(d->name->data, t->data) == 0) {
+                    printf("replacing %s/%s with:\n", d->name->data, t->data); 
+                    for(int k = 0; k < d->output->count; k++) {
+                        printf("T: %s\n", ((token**)d->output->data)[k]->data);
+                    }
+                    for(int k = 0; k < ts->count; k++) {
+                        printf("A: %s\n", ((token**)ts->data)[k]->data);
+                    }
+
                     replace_token_with_define(ts, d, i);
                 }
             }
@@ -653,7 +662,14 @@ void replace_token_with_define(dynamic_array* tokens, define* d, int loc)
         // a -> [1 + 2]
         // b -> [5]
         // ...
+        printf("%s\n", d->name->data);
+        for (int i = 0; i < tokens->count; i++) {
+            printf("toke: %s\n", ((token**)tokens->data)[i]->data);
+        }
         remove_tokens(tokens, loc + 1, macro_end + 1); // Remove macro inputs
+        for (int i = 0; i < tokens->count; i++) {
+            printf("toke: %s\n", ((token**)tokens->data)[i]->data);
+        }
         replace_tokens_with_array(tokens, current_token, loc - 1, loc + 1, d->output); // Replace macro name with macro output
         
         // Replace each input with each stored input
@@ -759,7 +775,7 @@ void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
     }
     case PRE_PROCESS_ENDIF: {
         int end = get_end_of_line(tokens, start);
-        //remove_tokens(tokens, start, end);
+        remove_tokens(tokens, start, end);
         break;
     }   
     case PRE_PROCESS_INCLUDE: {

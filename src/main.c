@@ -303,9 +303,10 @@ int main(int argc, char *argv[])
     da_init(&include_paths, char*);
     
     da_append(&include_paths, "./", char*);
-    da_append(&include_paths, "/usr/include", char*);
-    da_append(&include_paths, "/usr/include/linux", char*);
-    da_append(&include_paths, "/usr/lib/gcc/x86_64-pc-linux-gnu/15.1.1/include", char*);
+    da_append(&include_paths, "/usr/local/musl/include", char*);
+    //da_append(&include_paths, "/usr/include", char*);
+    //da_append(&include_paths, "/usr/include/linux", char*);
+    //da_append(&include_paths, "/usr/lib/gcc/x86_64-pc-linux-gnu/15.1.1/include", char*);
 
     remove_comments(&tokens);
     preprocess_file(&tokens, &defines, &include_paths);

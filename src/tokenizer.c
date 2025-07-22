@@ -569,6 +569,14 @@ type* get_string_type(dynamic_array* types)
             return ty;
         }
     }
+    // If it is in the types, then make it one
+    type* type_string = malloc(sizeof(type));
+    type_string->string = "char";
+    type_string->size = 1;
+    type_string->ptr_count = 1;
+    da_append(types, type_string, type*);
+    return type_string;
+    
     fprintf(stderr, "%s:%d: error: Unable to find string type\n", __FILE__, __LINE__);
     return NULL;
 }

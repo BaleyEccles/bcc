@@ -52,7 +52,7 @@ char get_name_from_size(int size)
             return size_mapping[i].name[0];
         }
     }
-    fprintf(stderr, "%s:%d: error: Unable to find namem for %i\n", __FILE__, __LINE__, size);
+    fprintf(stderr, "%s:%d: error: Unable to find name for %i\n", __FILE__, __LINE__, size);
     *(int*)0 = 0;
     return ' ';
 }
