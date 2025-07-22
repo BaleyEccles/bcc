@@ -436,6 +436,7 @@ void untabbify_tokens(dynamic_array* tokens)
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (strcmp(t->data, "\t") == 0) {
+            free(t->data);
             ALLOC_STR(t, " ");
         }
     }
@@ -447,10 +448,12 @@ void clean_tokens(dynamic_array* tokens)
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (t->data == NULL) {
+            free(t->data);
             ALLOC_STR(t, "");
         }
 
         if (strcmp(t->data, "\\") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "\n") == 0) {
+            free(t->data);
             ALLOC_STR(t, "");
         }
         remove_bad_chars(t->data);
@@ -471,6 +474,7 @@ void remove_comments(dynamic_array* tokens)
         token* t = ((token**)tokens->data)[i];
         if (strcmp(t->data, "//") == 0) {
             while (strcmp(t->data, "\n") != 0) {
+                free(t->data);
                 ALLOC_STR(t, "");
                 i++;
                 t = ((token**)tokens->data)[i];
@@ -478,10 +482,12 @@ void remove_comments(dynamic_array* tokens)
         }
         if (strcmp(t->data, "/") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "*") == 0 ) {
             while (strcmp(t->data, "*/") != 0) {
+                free(t->data);
                 ALLOC_STR(t, "");
                 i++;
                 t = ((token**)tokens->data)[i];
             }
+            free(t->data);
             ALLOC_STR(t, "");
         }
     }

@@ -856,6 +856,7 @@ void generate_functions(context* ctx)
 
         }
     }
+    free(token_stack.data);
 }
 
 

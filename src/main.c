@@ -302,12 +302,9 @@ int main(int argc, char *argv[])
     dynamic_array include_paths;
     da_init(&include_paths, char*);
     
-    char cwd[1024];
-    getcwd(cwd, sizeof(cwd));
-    da_append(&include_paths, cwd, char*);
     da_append(&include_paths, "./", char*);
     da_append(&include_paths, "/usr/include", char*);
-    da_append(&include_paths, "/usr/include/linux/", char*);
+    da_append(&include_paths, "/usr/include/linux", char*);
     da_append(&include_paths, "/usr/lib/gcc/x86_64-pc-linux-gnu/15.1.1/include", char*);
 
     remove_comments(&tokens);
@@ -355,9 +352,49 @@ int main(int argc, char *argv[])
 
     printf("INFO: Running: %s\n", as_command);
     system(as_command);
+    free(as_command);
     printf("INFO: Running: %s\n", ld_command);
     system(ld_command);
+    free(ld_command);
 
+    for (int i = 0; i < types.count; i++) {
+        type* t = ((type**)types.data)[i];
+        free(t);
+    }
+    free(types.data);
+
+    for (int i = 0; i < tokens.count; i++) {
+        token* t = ((token**)tokens.data)[i];
+        free(t->data);
+        free(t);
+    }
+    free(tokens.data);
+    free(functions.data);
+    free(include_paths.data);
+
+    for (int i = 0; i < defines.count; i++) {
+        define* d = ((define**)defines.data)[i];
+        for (int j = 0; j < d->output->count; j++) {
+            token* t = ((token**)d->output->data)[j];
+            free(t->data);
+            free(t);
+        }
+
+        da_destroy(d->output, token*);
+        if (d->inputs != NULL) {
+            for (int j = 0; j < d->inputs->count; j++) {
+                token* t = ((token**)d->inputs->data)[j];
+                free(t->data);
+                free(t);
+            }
+            da_destroy(d->inputs, token*);
+        }
+        free(d->name->data);
+        free(d->name);
+        free(d);
+    }
+    free(defines.data);
+    
    
     return 0;
     
