@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <sys/stat.h>
+
 #include "AST.h"
 #include "tokenizer.h"
 #include "graph.h"
@@ -27,6 +29,7 @@ typedef enum {
     PRE_PROCESS_IFNDEF,
     PRE_PROCESS_ENDIF,
     PRE_PROCESS_UNDEF,
+    PRE_PROCESS_ERROR,
 } PREPROCESSORS;
 
 PREPROCESSORS get_preprocessor(dynamic_array *tokens, int location);

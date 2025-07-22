@@ -26,6 +26,15 @@ typedef struct {
         (DA)->count = 0;                                            \
     }
 
+#define da_destroy(DA, DA_TYPE)                                     \
+    {                                                               \
+        (DA)->size = -1;                                            \
+        (DA)->count = -1;                                           \
+        free((DA)->data);                                           \
+        free(DA);                                                   \
+    }
+
+
 #define da_allocate(DA, DA_TYPE, SIZE)                                  \
     {                                                                   \
         DA_TYPE* new_data = malloc(((SIZE)) * sizeof(DA_TYPE));         \

@@ -9,6 +9,13 @@
 
 #include "dynamic_array.h"
 
+
+#define ALLOC_STR(TOKEN, STR)                   \
+    (TOKEN)->data = malloc(strlen(STR) + 1);    \
+    if ((TOKEN)->data != NULL) {                \
+        strcpy(TOKEN->data, STR);               \
+    }
+
 typedef struct {
     char* string;
     int size; // In bytes
@@ -63,28 +70,21 @@ typedef enum {
     TIMES,
     DIVIDE,
     MODULO,
-    
     PLUS,
     MINUS,
-    
     LEFT_SHIFT,
     RIGHT_SHIFT,
-    
     LESS_THAN,
     LESS_THAN_OR_EQUALS,
     GREATER_THAN,
     GREATER_THAN_OR_EQUALS,
-    
     LOGICAL_EQUALS,
     NOT_EQUALS,
-    
     BITWISE_AND,
     BITWISE_XOR,
     BITWISE_OR,
-    
     LOGICAL_AND,
     LOGICAL_OR,
-    
     TERNARY_CONDITIONAL,
     COLON,
     EQUALS,

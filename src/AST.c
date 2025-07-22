@@ -46,6 +46,9 @@ AST_node* get_node_from_name_recursive(AST_node* node, char* name) {
 
 
 AST_node* get_node_from_name(AST_node* node, char* name) {
+    if (node == NULL) {
+        return NULL;
+    }
     AST_node* output = get_node_from_name_recursive(node, name);
     if (output == NULL) {
         fprintf(stderr, "%s:%d: error: Unable to find varible from name %s\n", __FILE__, __LINE__, name);
@@ -55,6 +58,16 @@ AST_node* get_node_from_name(AST_node* node, char* name) {
 
 
 bool is_varible_defined(AST_node* node, char* str) {
+
+    // For when we are doing preprocessing
+    // The scope is NULL
+    // Things that are varibles may not be defined
+    // So we assume that it is true
+    // We should never encounter this define, but it needs to be processed
+    if (node == NULL) {
+        return true;
+    }
+    
     if (node->node_type == VARIBLE) {
         char* varible_name = ((varible*)node->data)->name;
         if (strcmp(varible_name, str) == 0) {
@@ -95,6 +108,9 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
         *(int*)0 = 0;
     }
     
+    if (token_is_operator(((token**)ctx->tokens->data)[start])) {
+        fprintf(stderr, "%s:%d: todo: Operator was passed into 'create_constant_node', it was %s %i\n", __FILE__, __LINE__, ((token**)ctx->tokens->data)[start]->data, ((token**)ctx->tokens->data)[start]->pos_in_file);
+    }
     
 
     token* t = ((token**)ctx->tokens->data)[start];
@@ -119,8 +135,6 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
     } else {
         if (!is_varible_defined(scope, t->data)) {
             fprintf(stderr, "%s:%d: error: Varible '%s' on posistion %i is not defined\n", __FILE__, __LINE__, t->data, t->pos_in_file);
-
-                
         }
         //node = get_node_from_name(scope, t->data);
         // TODO: For now we assume that it is a varible, if not a number
@@ -130,10 +144,14 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
         
         AST_node* varible_definition = get_node_from_name(scope, t->data);
 
-        v->type = ((varible*)varible_definition->data)->type;
-        v->name = t->data;
-        node->data = (void*)v;
-        
+        if (varible_definition == NULL) {
+            v->name = t->data;
+            node->data = (void*)v;
+        } else {
+            v->type = ((varible*)varible_definition->data)->type;
+            v->name = t->data;
+            node->data = (void*)v;
+        }        
     }
     return node;
 
@@ -268,10 +286,77 @@ AST_node* create_cast_node(AST_node* scope, context* ctx, int start, int end)
     return cast_node;
     
 }
+AST_node* create_ternery_node(AST_node* scope, context* ctx, int start, int end, int colon_loc)
+{
+    int ternery_loc = -1;
+    for (int k = colon_loc; k >= start; k--) {
+        token* t = ((token**)ctx->tokens->data)[k];
+        if (t->type == TERNARY_CONDITIONAL) {
+            ternery_loc = k;
+            break;
+        }
+    }
+    if (ternery_loc == -1) {
+        fprintf(stderr, "%s:%d: error: Could not find ? in ternary expression\nThe location of the colon is %i\nThe tokens are:\n", __FILE__, __LINE__, colon_loc);
+        for (int i = start; i < end + 1; i++) {
+            token* t = ((token**)ctx->tokens->data)[i];
+            fprintf(stderr, "token %i: %s %i\n", i, t->data, t->pos_in_file);
+        }
+    }
+
+    printf("%i %i\n", start, end);
+    for (int i = start; i < end + 1; i++) {
+        printf("token %i: %s\n", i, ((token**)ctx->tokens->data)[i]->data);
+    }
+    
+    printf("cond from %i to %i\n", start, ternery_loc - 1);
+    AST_node* cond = create_expression_node(scope, ctx, start, ternery_loc - 1);
+    printf("expr1 from %i to %i\n", ternery_loc + 1, colon_loc - 1);
+    AST_node* expr1 = create_expression_node(scope, ctx, ternery_loc + 1, colon_loc - 1);
+    printf("expr2 from %i to %i\n", colon_loc + 1, end);
+    AST_node* expr2 = create_expression_node(scope, ctx, colon_loc + 1, end);
+
+    // ? node
+    token* if_token = ((token**)ctx->tokens->data)[ternery_loc];
+    AST_node* if_node = malloc(sizeof(AST_node));
+    init_AST_node(if_node);
+    
+    if_node->node_type = KEY_WORD;
+    if_node->token = if_token;
+    {
+        key_word* kw = malloc(sizeof(key_word));
+        kw->name = if_token->data;
+        kw->key_word_type = TERNARY_CONDITIONAL;
+        kw->data = NULL;
+        if_node->data = kw;
+    }
+    da_append(if_node->children, cond, AST_node*);
+    da_append(if_node->children, expr1, AST_node*);
+
+    // : node (else)
+    token* else_token = ((token**)ctx->tokens->data)[colon_loc];
+    AST_node* else_node = malloc(sizeof(AST_node));
+    init_AST_node(else_node);
+    
+    else_node->node_type = KEY_WORD;
+    else_node->token = else_token;
+    {
+        key_word* kw = malloc(sizeof(key_word));
+        kw->name = else_token->data;
+        kw->key_word_type = COLON;
+        kw->data = NULL;
+        else_node->data = kw;
+    }
+    da_append(else_node->children, expr2, AST_node*);
+    da_append(if_node->children, else_node, AST_node*);
+    
+    return if_node;
+
+}
+
 
 AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int end)
 {
-
     while (((token**)ctx->tokens->data)[end]->type == SEMICOLON) {
         end--;
     }
@@ -280,9 +365,7 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
         end--;
     }
 
-    
-
-    for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]); i >= 0; i--) {
+    for (int i = sizeof(operator_mapping)/sizeof(operator_mapping[0]) - 1; i >= 0; i--) {
         for (int j = start; j < end + 1; j++) {
 
             // Skip the things in parentheses
@@ -290,7 +373,8 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
                 j = get_closing_paren_location(ctx->tokens, j);
             }
             // Go from lowest precedence to highest and create left/right nodes containing the left and right of the expression
-            else if (token_is_operator(((token**)ctx->tokens->data)[j]) && ((token**)ctx->tokens->data)[j]->type == operator_mapping[i].type) {
+            else if (token_is_operator(((token**)ctx->tokens->data)[j]) &&
+                     ((token**)ctx->tokens->data)[j]->type == operator_mapping[i].type) {
                 AST_node* node = malloc(sizeof(AST_node));
                 init_AST_node(node);
                 node->node_type = OPERATOR;
@@ -298,13 +382,20 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
                 operator* o = malloc(sizeof(operator));
                 o->type = node->token->type;
                 o->name = node->token->data;
-                node->data = (void*)o; 
+                node->data = (void*)o;
 
-                int left_start = start;
-                int left_end = j - 1;
-                AST_node* left_node = create_expression_node(scope, ctx, left_start, left_end);
-                da_append(node->children, left_node, AST_node*);
-                
+                if (o->type == COLON) {
+                    free(o);
+                    free(node);
+                    return create_ternery_node(scope, ctx, start, end, j);
+                }
+                if (o->type == LOGICAL_NOT) {
+                } else {
+                    int left_start = start;
+                    int left_end = j - 1;
+                    AST_node* left_node = create_expression_node(scope, ctx, left_start, left_end);
+                    da_append(node->children, left_node, AST_node*);
+                }
                 if (o->type == POST_INCREMENT || o->type == POST_DECREMENT) {
                 } else {
                     int right_start = j + 1;
@@ -468,7 +559,6 @@ int create_else_node(AST_node* scope, AST_node* node, context* ctx, token* t)
 {
     AST_node* else_node = malloc(sizeof(AST_node));
     init_AST_node(else_node);
-    
     
     else_node->node_type = KEY_WORD;
     else_node->token = t;
@@ -651,7 +741,7 @@ void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int 
     
 
     dynamic_array token_stack;
-    da_init(&token_stack, token);
+    da_init(&token_stack, token*);
 
     for (int i = start; i < end + 1; i++) {
         da_append(&token_stack, ((token**)ctx->tokens->data)[i], token*);
@@ -661,7 +751,7 @@ void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int 
             token_stack.count = 0;
         }
     }
-    
+    free(token_stack.data);
 }
 
 void generate_function_inputs(context* ctx, AST_node* node, int start, int end)
@@ -746,7 +836,7 @@ bool is_function_definition(context* ctx, dynamic_array* token_stack)
 void generate_functions(context* ctx)
 {
     dynamic_array token_stack;
-    da_init(&token_stack, token);
+    da_init(&token_stack, token*);
     for (int i = 0; i < ctx->tokens->count; i++) {
         da_append(&token_stack, ((token**)ctx->tokens->data)[i], token*);
         if (is_function_definition(ctx, &token_stack)) {
@@ -807,13 +897,15 @@ int evaluate_node(AST_node* n)
     if (n->children->count == 0) {
         return strtol(n->token->data, NULL, 10);
     } else {
-        if (n->children->count != 2) {
-            fprintf(stderr, "%s:%d: error: Evaluating expression with not two nodes\n", __FILE__, __LINE__);
-        }
+        
         int left = evaluate_node(((AST_node**)n->children->data)[0]);
-        int right = evaluate_node(((AST_node**)n->children->data)[1]);
+        int right = 0;
+        if (n->children->count > 1) {
+            right = evaluate_node(((AST_node**)n->children->data)[1]);
+        }
         
         TOKEN_TYPE ty = ((operator*)n->data)->type;
+        printf("%s %i\n", n->token->data, ty);
         switch (ty) {
         case PLUS: {
             return left + right;
@@ -831,8 +923,45 @@ int evaluate_node(AST_node* n)
             return left || right;
             break;
         }
+        case LOGICAL_NOT: {
+            return !left;
+            break;
+        }
+        case LOGICAL_EQUALS: {
+            return left == right;
+            break;
+        }
+        case GREATER_THAN: {
+            return left > right;
+            break;
+        }
+        case GREATER_THAN_OR_EQUALS: {
+            return left >= right;
+            break;
+        }
+        case LESS_THAN: {
+            return left < right;
+            break;
+        }
+        case LESS_THAN_OR_EQUALS: {
+            return left <= right;
+            break;
+        }
+        case COLON: {
+            return left;
+            break;
+        }
+        case TERNARY_CONDITIONAL: {
+            printf("tern cond\n");
+            int cond = left;
+            int expr1 = right;
+            printf("%s\n", ((AST_node**)n->children->data)[2]->token->data);
+            int expr2 = evaluate_node(((AST_node**)n->children->data)[2]);
+            return cond ? expr1 : expr2;
+            break;
+        }
         default: {
-            fprintf(stderr, "%s:%d: todo: Evaluating %s %i is not handled yet\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file);
+            fprintf(stderr, "%s:%d: todo: Evaluating %s %i with type %i is not handled yet\n", __FILE__, __LINE__, n->token->data, n->token->pos_in_file, ty);
             break;
         }
         }

@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
             input_file_name = argv[i];
         }
     }
+    free(flag);
     if (output_file == NULL) {
         output_file = "output";
     }
@@ -112,21 +113,24 @@ int main(int argc, char *argv[])
     sprintf(as_default_command, "as -g -o %s.o %s.asm ", output_file, output_file);
 
     char* as_command = malloc(sizeof(char)*(strlen(as_default_command) + strlen(as_inputs) + 1));
+    as_command[0] = '\0';
     strcat(as_command, as_default_command);
     strcat(as_command, as_inputs);
+    free(as_default_command);
 
     char* ld_default_command = malloc(sizeof(char)*(strlen(output_file)*2 + 20));
     sprintf(ld_default_command, "ld -o %s %s.o ", output_file, output_file);
     char* ld_command = malloc(sizeof(char)*(strlen(ld_default_command) + strlen(ld_inputs) + 1));
+    ld_command[0] = '\0';
     strcat(ld_command, ld_default_command);
     strcat(ld_command, ld_inputs);
+    free(ld_default_command);
     
     FILE* input_file = fopen(input_file_name, "r");
     
     fseek(input_file, 0L, SEEK_END);
     int input_file_size = ftell(input_file);
     rewind(input_file);
-
 
     dynamic_array tokens;
     da_init(&tokens, token*);
@@ -157,9 +161,154 @@ int main(int argc, char *argv[])
     dynamic_array defines;
     da_init(&defines, define*);
 
+    // Default defines
+    define* stdc_version = malloc(sizeof(define));
+    token* stdc_version_token = malloc(sizeof(token));
+    ALLOC_STR(stdc_version_token, "__STDC_VERSION__");
+    stdc_version->name = stdc_version_token;
+    
+    stdc_version->inputs = NULL;
+    
+    dynamic_array* stdc_version_output = malloc(sizeof(dynamic_array));
+    da_init(stdc_version_output, token*);
+    
+    token* stdc_version_token_output = malloc(sizeof(token));
+    ALLOC_STR(stdc_version_token_output, "199901L");
+    
+    da_append(stdc_version_output, stdc_version_token_output, token*);    
+    stdc_version->output = stdc_version_output;
+
+    da_append(&defines, stdc_version, define*);
+
+
+    define* file_offset_bits = malloc(sizeof(define));
+    token* file_offset_bits_token = malloc(sizeof(token));
+    ALLOC_STR(file_offset_bits_token, "_FILE_OFFSET_BITS");
+    file_offset_bits->name = file_offset_bits_token;
+    
+    file_offset_bits->inputs = NULL;
+    
+    dynamic_array* file_offset_bits_output = malloc(sizeof(dynamic_array));
+    da_init(file_offset_bits_output, token*);
+    
+    token* file_offset_bits_token_output = malloc(sizeof(token));
+    ALLOC_STR(file_offset_bits_token_output, "64");
+    
+    da_append(file_offset_bits_output, file_offset_bits_token_output, token*);    
+    file_offset_bits->output = file_offset_bits_output;
+
+    da_append(&defines, file_offset_bits, define*);
+
+
+
+    define* glibc_use = malloc(sizeof(define));
+    token* glibc_use_token = malloc(sizeof(token));
+    ALLOC_STR(glibc_use_token, "__GLIBC_USE");
+    glibc_use->name = glibc_use_token;
+    
+    glibc_use->inputs = NULL;
+    
+    dynamic_array* glibc_use_output = malloc(sizeof(dynamic_array));
+    da_init(glibc_use_output, token*);
+    
+    token* glibc_use_token_output = malloc(sizeof(token));
+    ALLOC_STR(glibc_use_token_output, "0");
+    
+    da_append(glibc_use_output, glibc_use_token_output, token*);    
+    glibc_use->output = glibc_use_output;
+
+    da_append(&defines, glibc_use, define*);
+
+
+
+
+    define* isoc23 = malloc(sizeof(define));
+    token* isoc23_token = malloc(sizeof(token));
+    ALLOC_STR(isoc23_token, "ISOC23");
+    isoc23->name = isoc23_token;
+    
+    isoc23->inputs = NULL;
+    
+    dynamic_array* isoc23_output = malloc(sizeof(dynamic_array));
+    da_init(isoc23_output, token*);
+    
+    token* isoc23_token_output = malloc(sizeof(token));
+    ALLOC_STR(isoc23_token_output, "0");
+    
+    da_append(isoc23_output, isoc23_token_output, token*);    
+    isoc23->output = isoc23_output;
+
+    da_append(&defines, isoc23, define*);
+
+    
+    define* xopen_source = malloc(sizeof(define));
+    token* xopen_source_token = malloc(sizeof(token));
+    ALLOC_STR(xopen_source_token, "_XOPEN_SOURCE");
+    xopen_source->name = xopen_source_token;
+    
+    xopen_source->inputs = NULL;
+    
+    dynamic_array* xopen_source_output = malloc(sizeof(dynamic_array));
+    da_init(xopen_source_output, token*);
+    
+    token* xopen_source_token_output = malloc(sizeof(token));
+    ALLOC_STR(xopen_source_token_output, "0");
+    
+    da_append(xopen_source_output, xopen_source_token_output, token*);    
+    xopen_source->output = xopen_source_output;
+    da_append(&defines, xopen_source, define*);
+
+
+
+    define* x86_64 = malloc(sizeof(define));
+    token* x86_64_token = malloc(sizeof(token));
+    ALLOC_STR(x86_64_token, "__x86_64__");
+    x86_64->name = x86_64_token;
+    
+    x86_64->inputs = NULL;
+    
+    dynamic_array* x86_64_output = malloc(sizeof(dynamic_array));
+    da_init(x86_64_output, token*);
+    
+    token* x86_64_token_output = malloc(sizeof(token));
+    ALLOC_STR(x86_64_token_output, "1");
+    
+    da_append(x86_64_output, x86_64_token_output, token*);    
+    x86_64->output = x86_64_output;
+
+    da_append(&defines, x86_64, define*);
+
+
+    define* fortify_source = malloc(sizeof(define));
+    token* fortify_source_token = malloc(sizeof(token));
+    ALLOC_STR(fortify_source_token, "_FORTIFY_SOURCE");
+    fortify_source->name = fortify_source_token;
+    
+    fortify_source->inputs = NULL;
+    
+    dynamic_array* fortify_source_output = malloc(sizeof(dynamic_array));
+    da_init(fortify_source_output, token*);
+    
+    token* fortify_source_token_output = malloc(sizeof(token));
+    ALLOC_STR(fortify_source_token_output, "0");
+    
+    da_append(fortify_source_output, fortify_source_token_output, token*);    
+    fortify_source->output = fortify_source_output;
+
+    da_append(&defines, fortify_source, define*);
+
+    // End Default defines
+
     dynamic_array include_paths;
     da_init(&include_paths, char*);
+    
+    char cwd[1024];
+    getcwd(cwd, sizeof(cwd));
+    da_append(&include_paths, cwd, char*);
+    da_append(&include_paths, "./", char*);
     da_append(&include_paths, "/usr/include", char*);
+    da_append(&include_paths, "/usr/include/linux/", char*);
+    da_append(&include_paths, "/usr/lib/gcc/x86_64-pc-linux-gnu/15.1.1/include", char*);
 
     remove_comments(&tokens);
     preprocess_file(&tokens, &defines, &include_paths);
@@ -170,7 +319,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        //nprintf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
 
@@ -179,9 +328,11 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
-        char* graph_name = malloc(sizeof(char)*9 + sizeof(char)*strlen(((function*)f->data)->name));
+        char* graph_name = malloc(sizeof(char)*(10 +strlen(((function*)f->data)->name)));
+        
         sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
         generate_graphviz_from_AST_node(f, graph_name);
+        free(graph_name);
     }
 
     for (int i = 0; i < functions.count; i++) {
@@ -200,11 +351,13 @@ int main(int argc, char *argv[])
     fclose(asm_file);
     
     asm_file = fopen(asm_file_name, "r");
+    free(asm_file_name);
 
     printf("INFO: Running: %s\n", as_command);
     system(as_command);
     printf("INFO: Running: %s\n", ld_command);
     system(ld_command);
+
    
     return 0;
     

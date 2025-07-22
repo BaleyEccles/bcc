@@ -336,6 +336,7 @@ bool is_token_end(char* str, char c_next)
             c_next == ','  ||
             c_next == '*'  ||
             c_next == '#'  ||
+            c_next == '!'  ||
             c_next == EOF;
         is_end =
             (c_start == ' '  ||
@@ -351,8 +352,12 @@ bool is_token_end(char* str, char c_next)
              c_start == '}'  ||
              c_start == ','  ||
              c_start == '#'  ||
+             c_start == '!'  ||
              c_start == EOF) ||
             is_end;
+        if (str[0] == '<' && str[strlen(str) - 1] == '-') {
+            is_end = false;
+        }
         if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
             is_end = true;
         }
@@ -381,7 +386,7 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
 
 token* get_next_token(FILE* f, int* start_pos)
 {
-    token* t = malloc(sizeof(token));    
+    token* t = malloc(sizeof(token));
     int end_pos = *start_pos + 1;
     bool token_found = false;
     
@@ -410,7 +415,6 @@ token* get_next_token(FILE* f, int* start_pos)
 void remove_bad_chars(char* data)
 {
     if (data[0] != '"') {
-
         int len = strlen(data);
         for (int i = 0; i < len; i++) {
             if (data[i] == ' ' || data[i] == '\t' || data[i] == '\n') {
@@ -424,12 +428,15 @@ void remove_bad_chars(char* data)
     }
 }
 
+
+
 void untabbify_tokens(dynamic_array* tokens)
 {
+
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (strcmp(t->data, "\t") == 0) {
-            t->data = " ";
+            ALLOC_STR(t, " ");
         }
     }
 }
@@ -440,13 +447,12 @@ void clean_tokens(dynamic_array* tokens)
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (t->data == NULL) {
-            t->data = "";
+            ALLOC_STR(t, "");
         }
 
         if (strcmp(t->data, "\\") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "\n") == 0) {
-            t->data = "";
+            ALLOC_STR(t, "");
         }
-        
         remove_bad_chars(t->data);
         // remove empty tokens 
         if (strlen(t->data) == 0) {
@@ -465,18 +471,18 @@ void remove_comments(dynamic_array* tokens)
         token* t = ((token**)tokens->data)[i];
         if (strcmp(t->data, "//") == 0) {
             while (strcmp(t->data, "\n") != 0) {
-                t->data = "";
+                ALLOC_STR(t, "");
                 i++;
                 t = ((token**)tokens->data)[i];
             }
         }
         if (strcmp(t->data, "/") == 0 && strcmp(((token**)tokens->data)[i + 1]->data, "*") == 0 ) {
             while (strcmp(t->data, "*/") != 0) {
-                t->data = "";
+                ALLOC_STR(t, "");
                 i++;
                 t = ((token**)tokens->data)[i];
             }
-            t->data = "";
+            ALLOC_STR(t, "");
         }
     }
 }
