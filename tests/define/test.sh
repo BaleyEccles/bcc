@@ -9,7 +9,6 @@ rm ${TEST_NAME}_bcc
 rm ${TEST_NAME}_bcc.asm
 rm ${TEST_NAME}_bcc.o
 
-rm *.*~
 rm *.gv
 
 # run the test
