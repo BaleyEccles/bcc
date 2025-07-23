@@ -385,24 +385,26 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < defines.count; i++) {
         define* d = ((define**)defines.data)[i];
-        for (int j = 0; j < d->output->count; j++) {
-            token* t = ((token**)d->output->data)[j];
-            free(t->data);
-            free(t);
-        }
-
-        da_destroy(d->output, token*);
-        if (d->inputs != NULL) {
-            for (int j = 0; j < d->inputs->count; j++) {
-                token* t = ((token**)d->inputs->data)[j];
+        if (d != NULL) {
+            for (int j = 0; j < d->output->count; j++) {
+                token* t = ((token**)d->output->data)[j];
                 free(t->data);
                 free(t);
             }
-            da_destroy(d->inputs, token*);
+
+            da_destroy(d->output, token*);
+            if (d->inputs != NULL) {
+                for (int j = 0; j < d->inputs->count; j++) {
+                    token* t = ((token**)d->inputs->data)[j];
+                    free(t->data);
+                    free(t);
+                }
+                da_destroy(d->inputs, token*);
+            }
+            free(d->name->data);
+            free(d->name);
+            free(d);
         }
-        free(d->name->data);
-        free(d->name);
-        free(d);
     }
     free(defines.data);
     
