@@ -612,6 +612,7 @@ char generate_asm_access(FILE* file, AST_node* scope, AST_node* node)
     char* dest = get_register("%eax", size_1);
 
     char* tmp = get_register("%ebx", size_1);
+
     fprintf(file, "    mov%c %s, %s\n", size_char_1, dest, tmp);
     
     dest = resize_register(file, tmp, size_1, 8);

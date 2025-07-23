@@ -142,6 +142,7 @@ AST_node* create_constant_node(AST_node* scope, context* ctx, int start, int end
         node->node_type = VARIBLE;
         node->token = t;
         varible* v = malloc(sizeof(varible));
+        v->stack_pos = 0;
         
         AST_node* varible_definition = get_node_from_name(scope, t->data);
 
@@ -414,10 +415,6 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
         // (int
         else if (((token**)ctx->tokens->data)[i + 0]->type == PAREN_OPEN &&
                  ((token**)ctx->tokens->data)[i + 1]->type == TYPE) {
-            for (int j = start; j < end; j++) {
-                printf("T: %s\n", ((token**)ctx->tokens->data)[j]->data);
-            }
-            printf("Cast here\n");
             return create_cast_node(scope, ctx, start, end);
         }
         // varible.member
@@ -459,6 +456,7 @@ void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, con
     varible_node->node_type = VARIBLE;
             
     varible* v = malloc(sizeof(varible));
+    v->stack_pos = 0;
 
     if (((token**)ctx->tokens->data)[start - 1]->type == TIMES || ((token**)ctx->tokens->data)[start - 1]->type == TYPE) {
         int i = 1;
@@ -494,6 +492,7 @@ void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, 
     varible_node->node_type = VARIBLE;
             
     varible* v = malloc(sizeof(varible));
+    v->stack_pos = 0;
 
     if (((token**)ctx->tokens->data)[start - 1]->type == TIMES || ((token**)ctx->tokens->data)[start - 1]->type == TYPE) {
         int i = 1;
@@ -502,7 +501,6 @@ void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, 
         }
         v->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[start - i]);
     } else {
-        printf("HERE: %s\n", varible_node->token->data);
         AST_node* definition_node = get_node_from_name(scope, varible_node->token->data);
         v->type = ((varible*)definition_node->data)->type;
     }
@@ -658,10 +656,6 @@ int create_for_node(AST_node* scope, AST_node* node, context* ctx, token* t)
     int block_start = for_loop_end + 1;
     int block_end = get_closing_paren_location(ctx->tokens, block_start);
 
-    printf("for:\n");
-    for (int j = block_start; j < block_end + 1; j++) {
-        printf("toke: %s\n", ((token**)ctx->tokens->data)[j]->data);
-    }
     
     generate_AST(scope, for_node, ctx, block_start, block_end);
     
@@ -741,7 +735,6 @@ int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* t
         token* t1 = ((token**)token_stack->data)[0];
         token* t2 = ((token**)token_stack->data)[1];
         if (t1->type == OTHER && token_is_modifier(t2)) {
-            printf("%s %s\n", t1->data, t2->data);
             // i = ...;
             // Modify varible
             create_varible_node(scope, node, ctx, t1);
@@ -816,6 +809,7 @@ void generate_function_inputs(context* ctx, AST_node* node, int start, int end)
         fi->node_type = VARIBLE;
             
         varible* varible = malloc(sizeof(varible));
+        varible->stack_pos = 0;
         varible->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         
 
@@ -913,6 +907,7 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
     da_init(u->varibles, varible*);
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
         varible* var = malloc(sizeof(varible));
+        var->stack_pos = 0;
         var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
         da_append(u->varibles, var, varible*);
@@ -955,6 +950,7 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
     da_init(u->varibles, varible*);
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
         varible* var = malloc(sizeof(varible));
+        var->stack_pos = 0;
         var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
         da_append(u->varibles, var, varible*);
@@ -979,7 +975,6 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
 // typedef char* string;
 void generate_type_from_type(context* ctx, int typedef_loc, int semicolon_loc)
 {
-    printf("TOK: %s\n", ((token**)ctx->tokens->data)[semicolon_loc - 1]->data);
     token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
     name_token->type = TYPE;
     type* type_type = malloc(sizeof(type));
@@ -1065,10 +1060,8 @@ void generate_functions(context* ctx)
 
 void update_varible_stack_posistion(AST_node* node, char* varible_name, int stack_pos)
 {
-    printf("upd %s\n", varible_name);
     if (node->node_type == VARIBLE) {
         if (strcmp(((varible*)node->data)->name, varible_name) == 0) {
-            printf("pos %s %i\n", varible_name, stack_pos);
             ((varible*)node->data)->stack_pos = stack_pos;
         }
     }
@@ -1084,7 +1077,6 @@ int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size)
         AST_node* child = ((AST_node**)node->children->data)[i];
         if (child->node_type == VARIBLE) {
             if (((varible*)child->data)->stack_pos == 0) {
-                printf("size: %i\n", ((varible*)child->data)->type->size);
                 stack_size += ((varible*)child->data)->type->size;
                 update_varible_stack_posistion(scope, ((varible*)child->data)->name, stack_size);
             }
