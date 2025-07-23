@@ -26,6 +26,7 @@ typedef enum {
     SEMICOLON,
     NUMBER,
     OTHER,
+    ACCESS_MEMBER,
     PAREN_OPEN,     //Parentheses
     PAREN_CLOSE,
     PAREN_CURLY_OPEN,
@@ -176,6 +177,9 @@ static const mapping operator_mapping[] = {
     {"!", LOGICAL_NOT},
     {"~", BITWISE_NOT},
 
+    {".", ACCESS_MEMBER},
+    {"->", ACCESS_MEMBER},
+    
     {"*", TIMES},
     {"/", DIVIDE},
     {"%", MODULO},

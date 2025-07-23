@@ -7,6 +7,7 @@
 
 
 void generate_template_asm(FILE* file, AST_node* root);
+char generate_asm_cast(FILE* file, AST_node* scope, AST_node* node);
 char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node);
 void generate_if_asm(FILE* file, AST_node* scope, AST_node* node);
 void generate_for_asm(FILE* file, AST_node* scope, AST_node* node);

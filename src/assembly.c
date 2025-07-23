@@ -429,7 +429,8 @@ char asm_varible(FILE* file, AST_node* scope, AST_node* node)
 char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
 {
     char output;
-    if (node->node_type == OPERATOR) {
+    switch (node->node_type) {
+    case OPERATOR: {
         AST_node* child1 = ((AST_node**)node->children->data)[0];
         AST_node* child2 = ((AST_node**)node->children->data)[1];
         
@@ -481,15 +482,18 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
             fprintf(stderr, "%s:%d: TODO: Operator %s %i was not handled\n", __FILE__, __LINE__, node->token->data, node->token->pos_in_file);
             fprintf(file  , "%s:%d: TODO: Operator %s %i was not handled\n", __FILE__, __LINE__, node->token->data, node->token->pos_in_file);
         }
-        
+        break;
     }
-    if (node->node_type == FUNCTION_CALL) {
+
+    case FUNCTION_CALL: {
         output = generate_asm_function_call(file, scope, node);
+        break;
     }
-    if (node->node_type == VARIBLE) {
+    case VARIBLE: {
         output = asm_varible(file, scope, node);
+        break;
     }
-    if (node->node_type == CONSTANT) {
+    case CONSTANT: {
         if (type_is_string(((constant*)node->data)->type)) {
             fprintf(file, "    leaq .STR_%s_%i(%%rip), %%rax\n", ((function*)scope->data)->name, ((function*)scope->data)->str_count);
             output = 'q';
@@ -498,8 +502,17 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
             int size = get_size_from_name(output);
             char* reg = get_register("%eax", size);
             fprintf(file, "    mov%c $%s, %s\n", output, ((constant*)node->data)->value, reg);
-            
         }
+        break;
+    }
+    case CAST: {
+        output = generate_asm_from_node(file, scope, node);
+        break;
+    }
+    default: {
+        fprintf(stderr, "%s:%d: TODO: Generating rvalue for %i is not done yet\n", __FILE__, __LINE__, node->node_type);
+        break;
+    }
     }
     return output;
 }

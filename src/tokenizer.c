@@ -338,6 +338,7 @@ bool is_token_end(char* str, char c_next)
             c_next == '*'  ||
             c_next == '#'  ||
             c_next == '!'  ||
+            c_next == '.'  ||
             c_next == EOF;
         is_end =
             (c_start == ' '  ||
@@ -354,6 +355,7 @@ bool is_token_end(char* str, char c_next)
              c_start == ','  ||
              c_start == '#'  ||
              c_start == '!'  ||
+             c_start == '.'  ||
              c_start == EOF) ||
             is_end;
         if (str[0] == '<' && str[strlen(str) - 1] == '-') {
@@ -610,11 +612,21 @@ type* get_type_from_name_and_ptr_count(dynamic_array* types, char* str, int ptr_
             return ty;
         }
     }
+    
     return NULL;
+}
+
+type* get_base_type(dynamic_array* types, type* t)
+{
+    if (t->type_type != TYPE) {
+        return t;
+    }
+    return get_base_type(types, ((type_data*)t->data)->t);
 }
 
 type* get_dereferenced_type(dynamic_array* types, type* t)
 {
+    t = get_base_type(types, t);
     type* ty = get_type_from_name_and_ptr_count(types, t->string, t->ptr_count - 1);
     if (ty == NULL) {
         ty = malloc(sizeof(type));
