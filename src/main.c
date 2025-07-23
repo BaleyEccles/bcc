@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        //nprintf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
 
@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
 
         
         sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
-        printf("f: %s\n", graph_name);
+        //printf("f: %s\n", graph_name);
         generate_graphviz_from_AST_node(f, graph_name);
         free(graph_name);
     }

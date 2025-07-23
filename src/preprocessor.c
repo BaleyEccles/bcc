@@ -549,7 +549,7 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
     char* file_name = get_path(include_paths, include_name);
     free(include_name);
     
-    printf("include file %s\n", file_name);
+    //printf("include file %s\n", file_name);
     FILE* file = fopen(file_name, "r");
     if (file == NULL) {
         fprintf(stderr, "%s:%d: error: fopen failed\n", __FILE__, __LINE__);
@@ -795,7 +795,7 @@ void preprocess_file(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
         
     }
     for (int i = 0; i < tokens->count; i++) {
-        printf("%s", ((token**)tokens->data)[i]->data);
+        //printf("%s", ((token**)tokens->data)[i]->data);
     }
 }
 

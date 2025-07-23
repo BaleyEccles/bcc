@@ -697,7 +697,7 @@ int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* t
         token* t2 = ((token**)token_stack->data)[token_stack->count - 2];
         token* t3 = ((token**)token_stack->data)[token_stack->count - 1];
         if (t1->type == TYPE && t2->type == OTHER && t3->type == EQUALS) {
-            printf("hee: %s\n", t2->data);
+            //printf("hee: %s\n", t2->data);
             // char * i = ...;
             // Initalize varible
             create_varible_node(scope, node, ctx, t2);
@@ -805,7 +805,7 @@ AST_node* create_function_node(context* ctx, int location)
 bool is_function_definition(context* ctx, dynamic_array* token_stack)
 {
     for (int i = 0; i < token_stack->count; i++) {
-        printf("t: %s\n", ((token**)token_stack->data)[i]->data);
+        //printf("t: %s\n", ((token**)token_stack->data)[i]->data);
     }
     if (token_stack->count >= 3) {
         token* t1 = ((token**)token_stack->data)[0];
