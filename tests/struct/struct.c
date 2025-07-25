@@ -1,15 +1,18 @@
 
-typedef struct {
-    char* a;
-    int b;
-    long c;
-} s_t;
+typedef struct {//  Stack pos
+    char* a;  // 8 | 0
+    int b;    // 2 | 8
+    long c;   // 4 | 10 
+} s_t;        // +
+              // = 14
 
 int main() {
+    int i = 10;
     s_t s;
     s.a = "test string";
-    s.c = 3;
-    s.b = 2;
+    s.c = 7;
+    s.b = 3;
+    s.b = 4;
     
-    return s.b + s.c;
+    return s.b + s.c - i;
 }

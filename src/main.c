@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
+        printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
         //printf("%s ", ((token**)tokens.data)[i]->data);
     }
 
@@ -346,7 +346,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
         f->types = &types;
-        generate_stack_posistions(f, f, 0);
+        generate_stack_posistions(&ctx, f, f, 0);
 
     }
 

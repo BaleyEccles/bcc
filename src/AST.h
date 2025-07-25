@@ -97,7 +97,8 @@ void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int 
 AST_node* create_function_node(context* ctx, int location);
 void generate_types(context* ctx);
 void generate_functions(context* ctx);
-int generate_stack_posistions(AST_node* scope, AST_node* node , int stack_size);
+int generate_stack_posistions(context* ctx, AST_node* scope, AST_node* node , int stack_size);
 int evaluate_node(AST_node* n);
+type* get_type_from_node(dynamic_array* types, AST_node* node);
 
 #endif // AST_H

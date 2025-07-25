@@ -41,7 +41,6 @@ int get_size_from_name(char name)
         }
     }
     fprintf(stderr, "%s:%d: error: Unable to find size for '%c'\n", __FILE__, __LINE__, name);
-    *(int*)0 = 0;
     return -1;
 }
 
@@ -417,6 +416,7 @@ char asm_logical_and(FILE* file, AST_node* scope, AST_node* node, AST_node* node
     
     return 'l';
 }
+
 char asm_varible(FILE* file, AST_node* scope, AST_node* node)
 {
     char size_char = get_name_from_size(((varible*)node->data)->type->size);
