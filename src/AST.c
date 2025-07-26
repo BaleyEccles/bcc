@@ -220,9 +220,9 @@ AST_node* create_member_access_node(AST_node* scope, context* ctx, int start, in
     type* t = get_type_from_node(ctx->types, to_access_node);
     if (t->type_type == STRUCT) {
         struct_data* d = ((struct_data*)t->data);
-        for (int i = 0; i < d->varibles->count; i++) {
-            if (strcmp(((varible**)d->varibles->data)[i]->name, access_token->data) == 0) {
-                var = ((varible**)d->varibles->data)[i];
+        for (int i = 0; i < d->members->count; i++) {
+            if (strcmp(((varible**)d->members->data)[i]->name, access_token->data) == 0) {
+                var = ((varible**)d->members->data)[i];
                 break;
             }
         }
@@ -237,7 +237,11 @@ AST_node* create_member_access_node(AST_node* scope, context* ctx, int start, in
     init_AST_node(access_point_node);
     access_point_node->token = ((token**)ctx->tokens->data)[end];
     access_point_node->node_type = VARIBLE;
-    access_point_node->data = (void*) var;
+    
+    varible* var_copied = malloc(sizeof(varible));
+    memcpy(var_copied, var, sizeof(varible));
+    var_copied->stack_pos = 0;
+    access_point_node->data = (void*) var_copied;
     
     da_append(access_node->children, to_access_node, AST_node*);
     da_append(access_node->children, access_point_node, AST_node*);
@@ -968,18 +972,18 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
     union_type->ptr_count = 0;
     
     union_data* u = malloc(sizeof(union_data));
-    u->varibles = malloc(sizeof(dynamic_array));
-    da_init(u->varibles, varible*);
+    u->members = malloc(sizeof(dynamic_array));
+    da_init(u->members, varible*);
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
         varible* var = malloc(sizeof(varible));
         var->stack_pos = 0;
         var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
-        da_append(u->varibles, var, varible*);
+        da_append(u->members, var, varible*);
         i += var->type->ptr_count + 3;
     }
-    for (int i = 0; i < u->varibles->count; i++) {
-        int size = ((varible**)u->varibles->data)[i]->type->size;
+    for (int i = 0; i < u->members->count; i++) {
+        int size = ((varible**)u->members->data)[i]->type->size;
         if (size > union_type->size) {
             union_type->size = size;
         }
@@ -1011,22 +1015,24 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
     struct_type->ptr_count = 0;
     
     struct_data* u = malloc(sizeof(struct_data));
-    u->varibles = malloc(sizeof(dynamic_array));
-    da_init(u->varibles, varible*);
+    u->members = malloc(sizeof(dynamic_array));
+    da_init(u->members, varible*);
+    
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
         varible* var = malloc(sizeof(varible));
         var->stack_pos = 0;
         var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
-        da_append(u->varibles, var, varible*);
+        da_append(u->members, var, varible*);
         i += var->type->ptr_count + 3;
     }
     int stack_pos = 0;
-    for (int i = 0; i < u->varibles->count; i++) {
-        varible* var = ((varible**)u->varibles->data)[i];
+    for (int i = 0; i < u->members->count; i++) {
+        varible* var = ((varible**)u->members->data)[i];
         struct_type->size += var->type->size;
         var->stack_pos = stack_pos;
-        stack_pos += struct_type->size;
+        printf("na: %s po: %i\n", var->name, stack_pos);
+        stack_pos += var->type->size;
     }
     struct_type->data = (void*)u;
     
@@ -1035,11 +1041,11 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
     
     
     printf("gen %s with size %i\n", struct_type->string, struct_type->size);
-    for(int i = 0; i < ((union_data*)struct_type->data)->varibles->count; i++) {
-        printf("%s %i %s %i\n", ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->type->string,
-               ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->type->ptr_count,
-               ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->name,
-               ((varible**)((union_data*)struct_type->data)->varibles->data)[i]->stack_pos);
+    for(int i = 0; i < ((union_data*)struct_type->data)->members->count; i++) {
+        printf("%s %i %s %i\n", ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->string,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->ptr_count,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->name,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->stack_pos);
     }
     
 }
@@ -1128,6 +1134,30 @@ void generate_functions(context* ctx)
     free(token_stack.data);
 }
 
+int get_member_location(type* t, char* name)
+{
+    int loc = -1;
+    dynamic_array* da = NULL;
+    if (t->type_type == STRUCT) {
+        da = ((struct_data*)t->data)->members;
+    }
+    if (da == NULL) {
+        fprintf(stderr, "%s:%d: todo: type %i was not handled\n", __FILE__, __LINE__, t->type_type);
+    }
+    
+    for (int i = 0; i < da->count; i++) {
+        if (strcmp(((varible**)da->data)[i]->name, name) == 0) {
+            printf("lco: %i\n", ((varible**)da->data)[i]->stack_pos);
+            loc = ((varible**)da->data)[i]->stack_pos;
+            break;
+        }
+    }
+
+    if (loc == -1) {
+        fprintf(stderr, "%s:%d: error: Unable to find %s in %s\n", __FILE__, __LINE__, name, t->string);
+    }
+    return loc;
+}
 
 
 void update_varible_stack_posistion(context* ctx, AST_node* node, AST_node* n, int stack_pos)
@@ -1137,54 +1167,70 @@ void update_varible_stack_posistion(context* ctx, AST_node* node, AST_node* n, i
         char* var_name = ((varible*)n->data)->name;
         if (strcmp(((varible*)node->data)->name, var_name) == 0) {
             ((varible*)node->data)->stack_pos = stack_pos;
-            printf("pos: %s %i\n", node->token->data, stack_pos);
+
         }
     }
     
-    if (node->node_type == ACCESS) {
-        // Somthing is wrong and im being dumb
-        AST_node* c1 = ((AST_node**)node->children->data)[0];
-        AST_node* c2 = ((AST_node**)node->children->data)[1];
-        int default_stack_pos = -1;
-        type* t = get_type_from_node(ctx->types, c1);
-        struct_data* d = ((struct_data*)t->data)->varibles->data;
-        for (int i = 0; i < d->varibles->count; i++) {
-            varible* v = ((varible**)d->varibles->data)[i];
-            if (strcmp(v->name, ((varible*)c2->data)->name) == 0) {
-                default_stack_pos = v->stack_pos;
-            }
-        }
-        int current_stack_pos = ((varible*)c2->data)->stack_pos;
-        if (current_stack_pos == default_stack_pos) {
-            ((varible*)c2->data)->stack_pos = ((varible*)c1->data)->stack_pos - ((varible*)c2->data)->stack_pos;
-        }
-    } 
-
     for (int i = 0; i < node->children->count; i++) {
         AST_node* child = ((AST_node**)node->children->data)[i];
         update_varible_stack_posistion(ctx, child, n, stack_pos);
+
     }
+
 }
+
+
+void update_varible_stack_posistion_member(context* ctx, AST_node* scope, AST_node* c1, AST_node* c2)
+{
+    type* t = get_type_from_node(ctx->types, c1);
+    int member_loc = get_member_location(t, ((varible*)c2->data)->name);
+    
+    int stack_pos = ((varible*)c1->data)->stack_pos - member_loc;
+    
+    update_varible_stack_posistion(ctx, scope, c2, stack_pos);
+}
+
 
 int generate_stack_posistions(context* ctx, AST_node* scope, AST_node* node, int stack_size)
 {
     for (int i = 0; i < node->children->count; i++) {
         AST_node* child = ((AST_node**)node->children->data)[i];
-        if (child->node_type == ACCESS) {
-            update_varible_stack_posistion(ctx, scope, child, stack_size);
+        if (child->token->type == ACCESS_MEMBER) {
+            AST_node* c1 = ((AST_node**)child->children->data)[0];
+            AST_node* c2 = ((AST_node**)child->children->data)[1];
+            if (((varible*)c1->data)->stack_pos == 0) {
+                stack_size += ((varible*)c1->data)->type->size;
+                update_varible_stack_posistion(ctx, scope, c1, stack_size);
+            }
+            if (((varible*)c2->data)->stack_pos == 0) {
+                update_varible_stack_posistion_member(ctx, scope, c1, c2);
+            }
+
         } else if (child->node_type == VARIBLE) {
             if (((varible*)child->data)->stack_pos == 0) {
                 stack_size += ((varible*)child->data)->type->size;
                 update_varible_stack_posistion(ctx, scope, child, stack_size);
             }
+
         }
-        stack_size = generate_stack_posistions(ctx, scope, child, stack_size);
+        if (child->token->type != ACCESS_MEMBER) {
+            stack_size = generate_stack_posistions(ctx, scope, child, stack_size);
+        }
     }
     ((function*)scope->data)->frame_size = stack_size;
     return stack_size;
-    
 }
 
+void print_vars(AST_node* node)
+{
+    if (node->node_type == VARIBLE) {
+        varible* var = ((varible*)node->data);
+        printf("%s at %i\n", var->name, var->stack_pos);
+    }
+    for (int i = 0; i < node->children->count; i++) {
+        print_vars(((AST_node**)node->children->data)[i]);
+    }
+}
 
 // This will be useful if we do constant folding
 int evaluate_node(AST_node* n)

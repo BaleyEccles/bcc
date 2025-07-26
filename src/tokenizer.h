@@ -108,11 +108,11 @@ typedef struct {
 } type;
 
 typedef struct {
-    dynamic_array* varibles;
+    dynamic_array* members;
 } union_data;
 
 typedef struct {
-    dynamic_array* varibles;
+    dynamic_array* members;
 } struct_data;
 
 typedef struct {

@@ -101,4 +101,6 @@ int generate_stack_posistions(context* ctx, AST_node* scope, AST_node* node , in
 int evaluate_node(AST_node* n);
 type* get_type_from_node(dynamic_array* types, AST_node* node);
 
+void print_vars(AST_node* node);
+
 #endif // AST_H

@@ -347,8 +347,10 @@ int main(int argc, char *argv[])
         AST_node* f = ((AST_node**)functions.data)[i];
         f->types = &types;
         generate_stack_posistions(&ctx, f, f, 0);
-
+        print_vars(f);
     }
+
+    
 
     char* asm_file_name = malloc(sizeof(char)*(strlen(output_file) + 5));
     sprintf(asm_file_name, "%s.asm", output_file);
