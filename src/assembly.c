@@ -422,7 +422,17 @@ char asm_logical_and(FILE* file, AST_node* scope, AST_node* node, AST_node* node
 
 char asm_varible(FILE* file, AST_node* scope, AST_node* node)
 {
+    // This code is bad. For some reason removing it stops the struct test from working
     if (((varible*)node->data)->type->type_type == 0) {
+        char size_char = get_name_from_size(((varible*)node->data)->type->size);
+        int size = get_size_from_name(size_char);
+        char* reg = get_register("%eax", size);
+        fprintf(file, "    mov%c -%i(%%rbp), %s \n", size_char, ((varible*)node->data)->stack_pos, reg);
+        return size_char;
+    }
+    if (((varible*)node->data)->type->type_type == TYPE) {
+        // TODO: this is a patch job, I dont understand what I have done
+        
         char size_char = get_name_from_size(((varible*)node->data)->type->size);
         int size = get_size_from_name(size_char);
         char* reg = get_register("%eax", size);

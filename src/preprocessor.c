@@ -567,7 +567,7 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
 
     int pos = 0;
     while (pos < file_size) {
-        token* t = get_next_token(file, &pos);
+        token* t = get_next_token(file, &file_tokens, &pos);
         da_append(&file_tokens, t, token*);
     }
     fclose(file);
@@ -580,7 +580,7 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
 
     for (int i = 0; i < file_tokens.count; i++) {
     }
-    
+
     remove_tokens(tokens, start, first_space);
     replace_tokens_with_array(tokens, include_token, start, end, &file_tokens);
 
@@ -771,7 +771,9 @@ void do_preprocessor(dynamic_array* tokens, dynamic_array* defines, dynamic_arra
 
 void preprocess_file(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths)
 {
-    
+    for (int i = 0; i < tokens->count; i++) {
+        //printf("%s\n", ((token**)tokens->data)[i]->data);
+    }
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         int key = get_preproccessor(tokens, i);

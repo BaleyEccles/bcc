@@ -149,9 +149,10 @@ int main(int argc, char *argv[])
 
     int pos = 0;
     while (pos < input_file_size) {
-        token* t = get_next_token(input_file, &pos);
+        token* t = get_next_token(input_file, &tokens, &pos);
         da_append(&tokens, t, token*);
     }
+    
     untabbify_tokens(&tokens);
 
     // Generate default types
@@ -317,9 +318,12 @@ int main(int argc, char *argv[])
 
     remove_comments(&tokens);
     preprocess_file(&tokens, &defines, &include_paths);
-    clean_tokens(&tokens);
     
-
+    
+    for (int i = 0; i < tokens.count; i++) {
+        //printf("%s", ((token**)tokens.data)[i]->data);
+    }
+    clean_tokens(&tokens);
     generate_types(&ctx);
 
     for (int i = 0; i < tokens.count; i++) {

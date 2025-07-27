@@ -309,66 +309,96 @@ void get_token_type(dynamic_array* ts, dynamic_array* tokens, token* t)
     }
 }
 
+bool token_is_empty(token* t) {
+    if (strlen(t->data) == 0) {
+        return true;
+    }
+    for (int i = 0; i < strlen(t->data); i++) {
+        if (t->data[i] != ' ') {
+            return false;
+        }
+    }
+    return true;
+}
 
-bool is_token_end(char* str, char c_next)
+bool is_token_end(dynamic_array* tokens, char* str, char c_next)
 {
     bool is_end = false;
     if (str[0] == '"') {
         int len = strlen(str) - 1;
         if (len > 1 && str[len] == '"') {
-            
-            is_end = true;
+            return true;
+        } else {
+            return false;
         }
-    } else {
-        int size = strlen(str);
-        char c_start = str[0];
-        is_end =
-            c_next == ' '  ||
-            c_next == '\t' ||
-            c_next == '\n' ||
-            c_next == ';'  ||
-            c_next == '}'  ||
-            c_next == '('  ||
-            c_next == ')'  ||
-            c_next == '['  ||
-            c_next == ']'  ||
-            c_next == '{'  ||
-            c_next == '}'  ||
-            c_next == ','  ||
-            c_next == '*'  ||
-            c_next == '#'  ||
-            c_next == '!'  ||
-            c_next == '.'  ||
-            c_next == EOF;
-        is_end =
-            (c_start == ' '  ||
-             c_start == '\t' ||
-             c_start == '\n' ||
-             c_start == ';'  ||
-             c_start == '}'  ||
-             c_start == '('  ||
-             c_start == ')'  ||
-             c_start == '['  ||
-             c_start == ']'  ||
-             c_start == '{'  ||
-             c_start == '}'  ||
-             c_start == ','  ||
-             c_start == '#'  ||
-             c_start == '!'  ||
-             c_start == '.'  ||
-             c_start == EOF) ||
-            is_end;
-        if (str[0] == '<' && str[strlen(str) - 1] == '-') {
-            is_end = false;
+    } else if (str[0] == '<') {
+        token* t = NULL;
+        for (int i = tokens->count - 1; i >= 0; i--) {
+            t = ((token**)tokens->data)[i];
+            if (!token_is_empty(t)) {
+                break;
+            }
         }
-        if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
-            is_end = true;
+        if (strcmp(t->data, "include") == 0) {
+            int len = strlen(str) - 1;
+            if (len > 1 && str[len] == '>') {
+                return true;
+            }
+            else {
+                return false;
+            }
         }
     }
+    
+    int size = strlen(str);
+    char c_start = str[0];
+    is_end =
+        c_next == ' '  ||
+        c_next == '\t' ||
+        c_next == '\n' ||
+        c_next == ';'  ||
+        c_next == '}'  ||
+        c_next == '('  ||
+        c_next == ')'  ||
+        c_next == '['  ||
+        c_next == ']'  ||
+        c_next == '{'  ||
+        c_next == '}'  ||
+        c_next == ','  ||
+        c_next == '*'  ||
+        c_next == '#'  ||
+        c_next == '!'  ||
+        c_next == '.'  ||
+        c_next == EOF;
+    is_end =
+        (c_start == ' '  ||
+         c_start == '\t' ||
+         c_start == '\n' ||
+         c_start == ';'  ||
+         c_start == '}'  ||
+         c_start == '('  ||
+         c_start == ')'  ||
+         c_start == '['  ||
+         c_start == ']'  ||
+         c_start == '{'  ||
+         c_start == '}'  ||
+         c_start == ','  ||
+         c_start == '#'  ||
+         c_start == '!'  ||
+         c_start == '.'  ||
+         c_start == EOF) ||
+        is_end;
+    if (str[0] == '<' && str[strlen(str) - 1] == '-') {
+        is_end = false;
+    }
+    if ((c_next == '+' || c_next == '-') && isalpha(str[size - 1])) {
+        is_end = true;
+    }
+
     return is_end;
 }
 
-bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
+bool is_token(FILE* f, dynamic_array* tokens, char* current_str, int* start_pos, int end_pos)
 {
     int len = end_pos - *start_pos;
     if (fseek(f, end_pos, SEEK_SET) != 0) {
@@ -378,7 +408,7 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
     char c_next = getc(f);
     rewind(f);
     
-    if (is_token_end(current_str, c_next)) {
+    if (is_token_end(tokens, current_str, c_next)) {
         *start_pos += len;
         return true;
     }
@@ -387,7 +417,7 @@ bool is_token(FILE* f, char* current_str, int* start_pos, int end_pos)
     return false;
 }
 
-token* get_next_token(FILE* f, int* start_pos)
+token* get_next_token(FILE* f, dynamic_array* tokens, int* start_pos)
 {
     token* t = malloc(sizeof(token));
     int end_pos = *start_pos + 1;
@@ -401,7 +431,7 @@ token* get_next_token(FILE* f, int* start_pos)
         fread(current_str, sizeof(char), len, f);
         current_str[len] = '\0';
 
-        if (is_token(f, current_str, start_pos, end_pos)) {
+        if (is_token(f, tokens, current_str, start_pos, end_pos)) {
             token_found = true;
             t->data = current_str;
             t->pos_in_file = *start_pos - len;
