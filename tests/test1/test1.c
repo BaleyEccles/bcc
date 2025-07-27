@@ -1,7 +1,7 @@
 
 int main() {
-    int j = 420;
-    int i = 1 + 3;
-    i = 3;
-    return i;
+    long i = 1;
+    int j = 2;
+    int k = 3;
+    return i + j - k;
 }

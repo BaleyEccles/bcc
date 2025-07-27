@@ -1,7 +1,9 @@
 
 int main()
 {
+    int k;
     int i;
+    int j;
     i = 100;
     if (i > 4 && i < 50) {
         return 1;

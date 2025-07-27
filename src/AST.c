@@ -227,6 +227,15 @@ AST_node* create_member_access_node(AST_node* scope, context* ctx, int start, in
             }
         }
     }
+    if (t->type_type == UNION) {
+        union_data* d = ((union_data*)t->data);
+        for (int i = 0; i < d->members->count; i++) {
+            if (strcmp(((varible**)d->members->data)[i]->name, access_token->data) == 0) {
+                var = ((varible**)d->members->data)[i];
+                break;
+            }
+        }
+    }
     if (var == NULL) {
         fprintf(stderr, "%s:%d: error: Unable to find %s in %s\n", __FILE__, __LINE__, access_token->data, ((token**)ctx->tokens->data)[start]->data);
         *(int*)0 = 0;
@@ -419,16 +428,14 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
                 init_AST_node(node);
                 node->node_type = OPERATOR;
                 node->token = ((token**)ctx->tokens->data)[j];
+                if (node->token->type == ACCESS_MEMBER) {
+                    node->node_type = ACCESS;
+                }
                 operator* o = malloc(sizeof(operator));
                 o->type = node->token->type;
                 o->name = node->token->data;
                 node->data = (void*)o;
 
-                //if (o->type == ACCESS_MEMBER) {
-                //    free(o);
-                //    free(node);
-                //    return create_member_access_node(scope, ctx, start, end);
-                    //}
                 if (o->type == COLON) {
                     free(o);
                     free(node);
@@ -504,7 +511,6 @@ void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, con
     // Varible
     AST_node* varible_node = NULL;
     if (t->type == ACCESS_MEMBER) {
-        printf("create ACC\n");
         varible_node = create_member_access_node(scope, ctx, start, equals_loc - 1);
     } else {
         varible_node = malloc(sizeof(AST_node));
@@ -581,7 +587,6 @@ void create_varible_node(AST_node* scope, AST_node* node, context* ctx, token* t
 
     if (token_is_modifier(((token**)ctx->tokens->data)[start + 1]) ||
         ((token**)ctx->tokens->data)[start + 1]->type == ACCESS_MEMBER) {
-        printf("HEHRe\n");
         create_declare_and_modify_varible_node(scope, node, ctx, start, end);
         return;
     } else {
@@ -928,9 +933,6 @@ AST_node* create_function_node(context* ctx, int location)
 
 bool is_function_definition(context* ctx, dynamic_array* token_stack)
 {
-    for (int i = 0; i < token_stack->count; i++) {
-        //printf("t: %s\n", ((token**)token_stack->data)[i]->data);
-    }
     if (token_stack->count >= 3) {
         token* t1 = ((token**)token_stack->data)[0];
         type* t = get_type(ctx->tokens, ctx->types, t1);
@@ -961,10 +963,11 @@ bool is_function_definition(context* ctx, dynamic_array* token_stack)
 void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
 {
     token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
+    name_token->type = TYPE;
     int opening_paren_loc = typedef_loc + 3;
     int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
-    name_token->type = TYPE;
- 
+    
+    
     type* union_type = malloc(sizeof(type));
     union_type->string = name_token->data;
     union_type->type_type = UNION;
@@ -974,6 +977,7 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
     union_data* u = malloc(sizeof(union_data));
     u->members = malloc(sizeof(dynamic_array));
     da_init(u->members, varible*);
+    
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
         varible* var = malloc(sizeof(varible));
         var->stack_pos = 0;
@@ -982,20 +986,25 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
         da_append(u->members, var, varible*);
         i += var->type->ptr_count + 3;
     }
+    
     for (int i = 0; i < u->members->count; i++) {
-        int size = ((varible**)u->members->data)[i]->type->size;
-        if (size > union_type->size) {
-            union_type->size = size;
+        varible* var = ((varible**)u->members->data)[i];
+        if (var->type->size > union_type->size) {
+            union_type->size = var->type->size;
         }
+        var->stack_pos = 0;
     }
     union_type->data = (void*)u;
+    
     da_append(ctx->types, union_type, type*);
+    
     /*
     printf("gen %s with size %i\n", union_type->string, union_type->size);
-    for(int i = 0; i < ((union_data*)union_type->data)->varibles->count; i++) {
-        printf("%s %i %s\n", ((varible**)((union_data*)union_type->data)->varibles->data)[i]->type->string,
-               ((varible**)((union_data*)union_type->data)->varibles->data)[i]->type->ptr_count,
-               ((varible**)((union_data*)union_type->data)->varibles->data)[i]->name);
+    for(int i = 0; i < ((union_data*)union_type->data)->members->count; i++) {
+        printf("%s %i %s %i\n", ((varible**)((union_data*)union_type->data)->members->data)[i]->type->string,
+               ((varible**)((union_data*)union_type->data)->members->data)[i]->type->ptr_count,
+               ((varible**)((union_data*)union_type->data)->members->data)[i]->name,
+               ((varible**)((union_data*)union_type->data)->members->data)[i]->stack_pos);
     }
     */
 }
@@ -1031,7 +1040,6 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
         varible* var = ((varible**)u->members->data)[i];
         struct_type->size += var->type->size;
         var->stack_pos = stack_pos;
-        printf("na: %s po: %i\n", var->name, stack_pos);
         stack_pos += var->type->size;
     }
     struct_type->data = (void*)u;
@@ -1039,7 +1047,7 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
     
     da_append(ctx->types, struct_type, type*);
     
-    
+    /*
     printf("gen %s with size %i\n", struct_type->string, struct_type->size);
     for(int i = 0; i < ((union_data*)struct_type->data)->members->count; i++) {
         printf("%s %i %s %i\n", ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->string,
@@ -1047,7 +1055,7 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
                ((varible**)((union_data*)struct_type->data)->members->data)[i]->name,
                ((varible**)((union_data*)struct_type->data)->members->data)[i]->stack_pos);
     }
-    
+    */
 }
 
 // typedef char* string;
@@ -1141,13 +1149,15 @@ int get_member_location(type* t, char* name)
     if (t->type_type == STRUCT) {
         da = ((struct_data*)t->data)->members;
     }
+    if (t->type_type == UNION) {
+        da = ((union_data*)t->data)->members;
+    }
     if (da == NULL) {
         fprintf(stderr, "%s:%d: todo: type %i was not handled\n", __FILE__, __LINE__, t->type_type);
     }
     
     for (int i = 0; i < da->count; i++) {
         if (strcmp(((varible**)da->data)[i]->name, name) == 0) {
-            printf("lco: %i\n", ((varible**)da->data)[i]->stack_pos);
             loc = ((varible**)da->data)[i]->stack_pos;
             break;
         }
@@ -1213,7 +1223,7 @@ int generate_stack_posistions(context* ctx, AST_node* scope, AST_node* node, int
             }
 
         }
-        if (child->token->type != ACCESS_MEMBER) {
+        if (child->node_type != ACCESS) {
             stack_size = generate_stack_posistions(ctx, scope, child, stack_size);
         }
     }
@@ -1225,7 +1235,6 @@ void print_vars(AST_node* node)
 {
     if (node->node_type == VARIBLE) {
         varible* var = ((varible*)node->data);
-        printf("%s at %i\n", var->name, var->stack_pos);
     }
     for (int i = 0; i < node->children->count; i++) {
         print_vars(((AST_node**)node->children->data)[i]);

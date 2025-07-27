@@ -65,7 +65,6 @@ char get_size_from_node(AST_node* node)
                 return size_mapping[i].name[0];
             }
         }
-        fprintf(stderr, "%s:%d: todo: Unable to get size of varible, it was size %i \n    Probably because it is a struct and they have not been handled yet\n", __FILE__, __LINE__, v->type->size);
     } else if (node->node_type == CONSTANT) {
         constant* c = (constant*)node->data;
         for (int i = 0; i < SIZE_COUNT; i++) {
@@ -81,6 +80,10 @@ char get_size_from_node(AST_node* node)
                 return size_mapping[i].name[0];
             }
         }
+    } else if (node->node_type == OPERATOR) {
+        return get_size_from_node(((AST_node**)node->children->data)[0]);
+    } else if (node->node_type == ACCESS) {
+        return get_size_from_node(((AST_node**)node->children->data)[1]);
     }
     fprintf(stderr, "%s:%d: error: Unable to get size of node, %s %i\n", __FILE__, __LINE__, node->token->data, node->token->pos_in_file);
     *(int*)0 = 0;
@@ -160,31 +163,36 @@ char* resize_register(FILE* file, char* input_register, int from_size, int to_si
     return output_register;
 }
 
+
+// The following functions work by:
+// Evaluating node1
+// saving the value from node1
+// Evaluating node2
+// Applying operation on saved value and node2 value
 char asm_plus(FILE* file, AST_node* scope, AST_node* node1, AST_node* node2)
 {
-    char size_char_1 = get_size_from_node(node1);
-    char size_char_2 = generate_rvalue_asm(file, scope, node2);
-    
+    char size_char_1 = generate_rvalue_asm(file, scope, node1);
     int size_1 = get_size_from_name(size_char_1);
+    char* reg_1 = get_register("%rax", size_1);
+
+    fprintf(file, "    push %%rax\n");
+    char size_char_2 = generate_rvalue_asm(file, scope, node2);
     int size_2 = get_size_from_name(size_char_2);
-    
-    char* dest = get_dest_register_from_size(size_1);
-    dest = resize_register(file, dest, size_1, size_2);
+    char* tmp = get_register("%rax", size_2);
+    char* reg_2 = get_register("%rbx", size_2);
+    fprintf(file, "    mov%c %s, %s\n", size_char_2, tmp, reg_2);
+    fprintf(file, "    pop %%rax\n");
 
-
-    if (node1->node_type == CONSTANT) {
-        fprintf(file, "    add%c $%s, %s\n", size_char_2, ((constant*)node1->data)->value, dest);
-    } else if (node1->node_type == FUNCTION_CALL) {
-        char* tmp = get_register("%edi", size_2);
-        fprintf(file, "    push %%rax\n");
-        generate_asm_from_node(file, scope, node1);
-        fprintf(file, "    mov%c %s, %s\n", size_char_2, dest, tmp);
-        fprintf(file, "    pop %%rax\n");
-        fprintf(file, "    add%c %s, %s\n", size_char_2, tmp, dest);
+    if (size_1 > size_2) {
+        reg_2 = resize_register(file, reg_2, size_2, size_1);
+        fprintf(file, "    add%c %s, %s\n", size_char_1, reg_2, reg_1);
+        return size_char_1;
     } else {
-        fprintf(file, "    add%c -%i(%%rbp), %s\n", size_char_2, ((varible*)node1->data)->stack_pos, dest);
+        reg_1 = resize_register(file, reg_1, size_1, size_2);
+        fprintf(file, "    add%c %s, %s\n", size_char_2, reg_2, reg_1);
+        return size_char_2;
     }
-    return size_char_2;
+    return ' ';
 }
 
 char asm_plus_equal(FILE* file, AST_node* scope, AST_node* node1, AST_node* node2)
@@ -206,33 +214,28 @@ char asm_plus_equal(FILE* file, AST_node* scope, AST_node* node1, AST_node* node
 
 char asm_minus(FILE* file, AST_node* scope, AST_node* node1, AST_node* node2)
 {
-    char size_char_1 = get_size_from_node(node1);
-    char size_char_2 = generate_rvalue_asm(file, scope, node2);
-    
+    char size_char_1 = generate_rvalue_asm(file, scope, node1);
     int size_1 = get_size_from_name(size_char_1);
+    char* reg_1 = get_register("%rax", size_1);
+
+    fprintf(file, "    push %%rax\n");
+    char size_char_2 = generate_rvalue_asm(file, scope, node2);
     int size_2 = get_size_from_name(size_char_2);
-    
-    char* dest = get_dest_register_from_size(size_1);
-    dest = resize_register(file, dest, size_1, size_2);
-    
-    if (node1->node_type == CONSTANT) {
-        fprintf(file, "    # this may be wrong\n");
-        fprintf(file, "    sub%c $%s, %s\n", size_char_2, ((constant*)node1->data)->value, dest);
-    } else if (node1->node_type == FUNCTION_CALL) {
-        char* tmp = get_register("%edi", size_2);
-        fprintf(file, "    push %%rax\n");
-        generate_asm_from_node(file, scope, node1);
-        fprintf(file, "    mov%c %s, %s\n", size_char_2, dest, tmp);
-        fprintf(file, "    pop %%rax\n");
-        fprintf(file, "    # this may be wrong\n");
-        fprintf(file, "    sub%c %s, %s\n", size_char_2, tmp, dest);
+    char* tmp = get_register("%rax", size_2);
+    char* reg_2 = get_register("%rbx", size_2);
+    fprintf(file, "    mov%c %s, %s\n", size_char_2, tmp, reg_2);
+    fprintf(file, "    pop %%rax\n");
+
+    if (size_1 > size_2) {
+        reg_2 = resize_register(file, reg_2, size_2, size_1);
+        fprintf(file, "    sub%c %s, %s\n", size_char_1, reg_2, reg_1);
+        return size_char_1;
     } else {
-        char* tmp = get_register("%edi", size_2);
-        fprintf(file, "    mov%c -%i(%%rbp), %s\n", size_char_2, ((varible*)node1->data)->stack_pos, tmp);
-        fprintf(file, "    sub%c %s, %s\n", size_char_2, dest, tmp);
-        fprintf(file, "    mov%c %s, %s\n", size_char_2, tmp, dest);
+        reg_1 = resize_register(file, reg_1, size_1, size_2);
+        fprintf(file, "    sub%c %s, %s\n", size_char_2, reg_2, reg_1);
+        return size_char_2;
     }
-    return size_char_2;
+    return ' ';
 }
 char asm_post_increment(FILE* file, AST_node* scope, AST_node* node1)
 {
@@ -419,11 +422,14 @@ char asm_logical_and(FILE* file, AST_node* scope, AST_node* node, AST_node* node
 
 char asm_varible(FILE* file, AST_node* scope, AST_node* node)
 {
-    char size_char = get_name_from_size(((varible*)node->data)->type->size);
-    int size = get_size_from_name(size_char);
-    char* reg = get_register("%eax", size);
-    fprintf(file, "    mov%c -%i(%%rbp), %s\n", size_char, ((varible*)node->data)->stack_pos, reg);
-    return size_char;
+    if (((varible*)node->data)->type->type_type == 0) {
+        char size_char = get_name_from_size(((varible*)node->data)->type->size);
+        int size = get_size_from_name(size_char);
+        char* reg = get_register("%eax", size);
+        fprintf(file, "    mov%c -%i(%%rbp), %s \n", size_char, ((varible*)node->data)->stack_pos, reg);
+        return size_char;
+    }
+    return '!';
 }
 
 char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
@@ -437,7 +443,9 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
         TOKEN_TYPE t = ((operator*)node->data)->type;
         switch (t) {
         case PLUS: {
+            fprintf(file, "    #HERE\n");
             output = asm_plus(file, scope, child1, child2);
+            fprintf(file, "    #HERE2\n");
             break;
         }
         case PLUS_EQUALS: {
@@ -496,7 +504,7 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
     case CONSTANT: {
         if (type_is_string(((constant*)node->data)->type)) {
             fprintf(file, "    leaq .STR_%s_%i(%%rip), %%rax\n", ((function*)scope->data)->name, ((function*)scope->data)->str_count);
-            output = 'q';
+            output = ' ';
         } else {
             output = get_name_from_size(((constant*)node->data)->type->size);
             int size = get_size_from_name(output);
@@ -507,6 +515,10 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
     }
     case CAST: {
         output = generate_asm_from_node(file, scope, node);
+        break;
+    }
+    case ACCESS: {
+        output = generate_asm_from_node(file, scope, ((AST_node**)node->children->data)[1]);
         break;
     }
     default: {
@@ -633,14 +645,30 @@ char generate_asm_access(FILE* file, AST_node* scope, AST_node* node)
     return output;
 }
 
+void generate_access_asm(FILE* file, AST_node* scope, AST_node* node, char size_char_1)
+{
+    
+    if (node->node_type == VARIBLE) {
+        if (size_char_1 == ' ') {
+            size_char_1 = get_size_from_node(node);
+        }
+        int size = get_size_from_name(size_char_1);
+        char* reg = get_register("%eax", size);    
+        fprintf(file, "    mov%c %s, -%i(%%rbp)\n", size_char_1, reg, ((varible*)(node->data))->stack_pos);
+    } else if (node->node_type == ACCESS) {
+        generate_access_asm(file, scope, ((AST_node**)node->children->data)[1], size_char_1);
+    } else {
+        fprintf(stderr, "%s:%d: todo: Accessing %s %i with type %i is not handled yey\n", __FILE__, __LINE__, node->token->data, node->token->pos_in_file, node->node_type);
+    }
+}
+
 char generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 {
     char output;
     if (node->node_type == OPERATOR && ((operator*)node->data)->type == EQUALS) {
         output = generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[1]);
-        int size = get_size_from_name(output);
-        char* reg = get_register("%eax", size);
-        fprintf(file, "    mov%c %s, -%i(%%rbp)\n", output, reg, ((varible*)((AST_node**)node->children->data)[0]->data)->stack_pos);
+        generate_access_asm(file, scope,  ((AST_node**)node->children->data)[0], output);
+        
 
     } else if (node->node_type == FUNCTION_CALL) {
         output = generate_asm_function_call(file, scope, node);

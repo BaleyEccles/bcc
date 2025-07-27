@@ -7,7 +7,7 @@ typedef struct {//  Stack pos
               // = 14
 
 int main() {
-    int i = 10;
+    int i = 1;
     s_t s;
     s.a = "test string";
     s.c = 7;
