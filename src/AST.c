@@ -1014,6 +1014,10 @@ void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
     token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
     name_token->type = TYPE;
     int opening_paren_loc = typedef_loc + 2;
+    // TODO: This fails when we are typedef-ing a struct from another type
+    // Example:
+    // struct struct_1 { int a; };
+    // typedef struct struct_1 struct_2;
     int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
     
     

@@ -70,6 +70,7 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
 {
     if (((token**)tokens->data)[starting_token_location]->type != PAREN_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_CURLY_OPEN && ((token**)tokens->data)[starting_token_location]->type != PAREN_SQUARE_OPEN) {
         fprintf(stderr, "%s:%d: error: input to get_closing_paren_location was not an opening parenthese, it was %s at %i with type %i\n", __FILE__, __LINE__, ((token**)tokens->data)[starting_token_location]->data, ((token**)tokens->data)[starting_token_location]->pos_in_file, ((token**)tokens->data)[starting_token_location]->type);
+        *(int*)0 = 0;
     }
     
     int i = starting_token_location;
@@ -262,13 +263,25 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
 {
     int ptr_count = get_ptr_count(tokens, t);
     
+    char* type_name = t->data;
+    if (strcmp(type_name, "unsigned") == 0) {
+        int next_loc = get_token_location(tokens, t) + 1;
+        char* next = ((token**)tokens->data)[next_loc]->data;
+        char* tmp = malloc(sizeof(char)*(strlen(type_name) + strlen(next) + 2));
+        tmp[0] = '\0';
+        strcat(tmp, type_name);
+        strcat(tmp, " ");
+        strcat(tmp, next);
+        type_name = tmp;
+    }
+    
     for (int i = 0; i < types->count; i++) {
         type* ty = ((type**)types->data)[i];
-        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
+        if (strcmp(ty->string, type_name) == 0 && ty->ptr_count == ptr_count) {
             return ty;
         }
     }
-
+    fprintf(stderr, "%s:%d: error: unable to find type from token %s %i\n", __FILE__, __LINE__, type_name, t->pos_in_file);
     return NULL;
 }
 

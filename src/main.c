@@ -31,6 +31,13 @@ void generate_default_types(dynamic_array* ts)
     type_char->ptr_count = 0;
     type_char->type_type = 0;
     da_append(ts, type_char, type*);
+    
+    type* type_unsigned_char = malloc(sizeof(type));
+    type_unsigned_char->string = "unsigned char";
+    type_unsigned_char->size = 1;
+    type_unsigned_char->ptr_count = 0;
+    type_unsigned_char->type_type = 0;
+    da_append(ts, type_unsigned_char, type*);
 
     type* type_short = malloc(sizeof(type));
     type_short->string = "short";
@@ -38,6 +45,13 @@ void generate_default_types(dynamic_array* ts)
     type_short->ptr_count = 0;
     type_short->type_type = 0;
     da_append(ts, type_short, type*);
+    
+    type* type_unsigned_short = malloc(sizeof(type));
+    type_unsigned_short->string = "unsigned short";
+    type_unsigned_short->size = 2;
+    type_unsigned_short->ptr_count = 0;
+    type_unsigned_short->type_type = 0;
+    da_append(ts, type_unsigned_short, type*);
 
     type* type_int = malloc(sizeof(type));
     type_int->string = "int";
@@ -46,12 +60,26 @@ void generate_default_types(dynamic_array* ts)
     type_int->type_type = 0;
     da_append(ts, type_int, type*);
 
+    type* type_unsigned_int = malloc(sizeof(type));
+    type_unsigned_int->string = "unsignedint";
+    type_unsigned_int->size = 2;
+    type_unsigned_int->ptr_count = 0;
+    type_unsigned_int->type_type = 0;
+    da_append(ts, type_unsigned_int, type*);
+
     type* type_long = malloc(sizeof(type));
     type_long->string = "long";
     type_long->size = 4;
     type_long->ptr_count = 0;
     type_long->type_type = 0;
     da_append(ts, type_long, type*);
+    
+    type* type_unsigned_long = malloc(sizeof(type));
+    type_unsigned_long->string = "unsigned long";
+    type_unsigned_long->size = 4;
+    type_unsigned_long->ptr_count = 0;
+    type_unsigned_long->type_type = 0;
+    da_append(ts, type_unsigned_long, type*);
 
     type* type_long_long = malloc(sizeof(type));
     type_long_long->string = "long long";
@@ -59,6 +87,13 @@ void generate_default_types(dynamic_array* ts)
     type_long_long->ptr_count = 0;
     type_long_long->type_type = 0;
     da_append(ts, type_long_long, type*);
+
+    type* type_unsigned_long_long = malloc(sizeof(type));
+    type_unsigned_long_long->string = "unsigned long long";
+    type_unsigned_long_long->size = 8;
+    type_unsigned_long_long->ptr_count = 0;
+    type_unsigned_long_long->type_type = 0;
+    da_append(ts, type_unsigned_long_long, type*);
 
     // TODO: Floats/doubles
 }
@@ -321,7 +356,7 @@ int main(int argc, char *argv[])
     
     
     for (int i = 0; i < tokens.count; i++) {
-        //printf("%s", ((token**)tokens.data)[i]->data);
+        printf("%s", ((token**)tokens.data)[i]->data);
     }
     clean_tokens(&tokens);
     generate_types(&ctx);
