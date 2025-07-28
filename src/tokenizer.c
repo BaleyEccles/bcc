@@ -282,6 +282,7 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
         }
     }
     fprintf(stderr, "%s:%d: error: unable to find type from token %s %i\n", __FILE__, __LINE__, type_name, t->pos_in_file);
+    *(int*)0 = 0;
     return NULL;
 }
 

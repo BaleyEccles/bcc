@@ -275,10 +275,10 @@ char asm_logical_equals(FILE* file, AST_node* scope, AST_node* node, AST_node* n
     fprintf(file, "    je .logical_equals_true_%i\n", node->token->pos_in_file);
     
     fprintf(file, ".logical_equals_false_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $0, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $0, %s\n", size_char_2, dest);
     fprintf(file, "    jmp .logical_equals_end_%i\n", node->token->pos_in_file);
     fprintf(file, ".logical_equals_true_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $1, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $1, %s\n", size_char_2, dest);
     fprintf(file, ".logical_equals_end_%i:\n", node->token->pos_in_file);
     return size_char_2;
 }
@@ -302,10 +302,10 @@ char asm_greater_than(FILE* file, AST_node* scope, AST_node* node, AST_node* nod
     fprintf(file, "    jg .greater_than_true_%i\n", node->token->pos_in_file);
     
     fprintf(file, ".greater_than_false_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $0, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $0, %s\n", size_char_2, dest);
     fprintf(file, "    jmp .greater_than_end_%i\n", node->token->pos_in_file);
     fprintf(file, ".greater_than_true_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $1, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $1, %s\n", size_char_2, dest);
     fprintf(file, ".greater_than_end_%i:\n", node->token->pos_in_file);
     return size_char_2;
 }
@@ -329,10 +329,10 @@ char asm_greater_than_or_equals(FILE* file, AST_node* scope, AST_node* node, AST
     fprintf(file, "    jge .greater_than_or_equal_true_%i\n", node->token->pos_in_file);
     
     fprintf(file, ".greater_than_or_equal_false_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $0, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $0, %s\n", size_char_2, dest);
     fprintf(file, "    jmp .greater_than_or_equal_end_%i\n", node->token->pos_in_file);
     fprintf(file, ".greater_than_or_equal_true_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $1, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $1, %s\n", size_char_2, dest);
     fprintf(file, ".greater_than_or_equal_end_%i:\n", node->token->pos_in_file);
     return size_char_2;
 }
@@ -355,10 +355,10 @@ char asm_less_than(FILE* file, AST_node* scope, AST_node* node, AST_node* node1,
     fprintf(file, "    jl .less_than_true_%i\n", node->token->pos_in_file);
     
     fprintf(file, ".less_than_false_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $0, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $0, %s\n", size_char_2, dest);
     fprintf(file, "    jmp .less_than_end_%i\n", node->token->pos_in_file);
     fprintf(file, ".less_than_true_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $1, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $1, %s\n", size_char_2, dest);
     fprintf(file, ".less_than_end_%i:\n", node->token->pos_in_file);
     return size_char_2;
 }
@@ -382,10 +382,10 @@ char asm_less_than_or_equals(FILE* file, AST_node* scope, AST_node* node, AST_no
     fprintf(file, "    jle .less_than_or_equal_true_%i\n", node->token->pos_in_file);
     
     fprintf(file, ".less_than_or_equal_false_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $0, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $0, %s\n", size_char_2, dest);
     fprintf(file, "    jmp .less_than_or_equal_end_%i\n", node->token->pos_in_file);
     fprintf(file, ".less_than_or_equal_true_%i:\n", node->token->pos_in_file);
-    fprintf(file, "    mov%c $1, %s\n", size_char_1, dest);
+    fprintf(file, "    mov%c $1, %s\n", size_char_2, dest);
     fprintf(file, ".less_than_or_equal_end_%i:\n", node->token->pos_in_file);
     return size_char_2;
 }

@@ -1170,7 +1170,7 @@ void generate_functions(context* ctx)
     dynamic_array token_stack;
     da_init(&token_stack, token*);
     for (int i = 0; i < ctx->tokens->count; i++) {
-        if (((token**)ctx->tokens->data)[i]->type == TYPEDEF) {
+        while (((token**)ctx->tokens->data)[i]->type == TYPEDEF) {
             i = find_semi_colon_skip_parentheses(ctx->tokens, i) + 1;
         }
         da_append(&token_stack, ((token**)ctx->tokens->data)[i], token*);
