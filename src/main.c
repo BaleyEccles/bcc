@@ -61,7 +61,7 @@ void generate_default_types(dynamic_array* ts)
     da_append(ts, type_int, type*);
 
     type* type_unsigned_int = malloc(sizeof(type));
-    type_unsigned_int->string = "unsignedint";
+    type_unsigned_int->string = "unsigned int";
     type_unsigned_int->size = 2;
     type_unsigned_int->ptr_count = 0;
     type_unsigned_int->type_type = 0;
@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
     
     
     for (int i = 0; i < tokens.count; i++) {
-        printf("%s", ((token**)tokens.data)[i]->data);
+        //printf("%s", ((token**)tokens.data)[i]->data);
     }
     clean_tokens(&tokens);
     generate_types(&ctx);
@@ -374,7 +374,6 @@ int main(int argc, char *argv[])
     for (int i = 0; i < functions.count; i++) {
         AST_node* f = ((AST_node**)functions.data)[i];
         char* graph_name = malloc(sizeof(char)*(10 +strlen(((function*)f->data)->name)));
-
         
         sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
         //printf("f: %s\n", graph_name);

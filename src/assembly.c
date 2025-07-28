@@ -453,9 +453,7 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
         TOKEN_TYPE t = ((operator*)node->data)->type;
         switch (t) {
         case PLUS: {
-            fprintf(file, "    #HERE\n");
             output = asm_plus(file, scope, child1, child2);
-            fprintf(file, "    #HERE2\n");
             break;
         }
         case PLUS_EQUALS: {

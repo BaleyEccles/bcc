@@ -462,13 +462,22 @@ void remove_bad_chars(char* data)
 {
     if (data[0] != '"') {
         int len = strlen(data);
-        for (int i = 0; i < len; i++) {
-            if (data[i] == ' ' || data[i] == '\t' || data[i] == '\n') {
-                for (int j = i; j < len; j++) {
-                    data[j] = data[j + 1];
+        bool do_remove_chars = true;
+        if (len >= 4) {
+            do_remove_chars = (strncmp(data, "long", 4) != 0) && do_remove_chars;
+        }
+        if (len >= 8) {
+            do_remove_chars = (strncmp(data, "unsigned", 8) != 0) && do_remove_chars;
+        }
+        if (do_remove_chars) {
+            for (int i = 0; i < len; i++) {
+                if (data[i] == ' ' || data[i] == '\t' || data[i] == '\n') {
+                    for (int j = i; j < len; j++) {
+                        data[j] = data[j + 1];
+                    }
+                    i--;
+                    len--;
                 }
-                i--;
-                len--;
             }
         }
     }
@@ -478,7 +487,6 @@ void remove_bad_chars(char* data)
 
 void untabbify_tokens(dynamic_array* tokens)
 {
-
     for (int i = 0; i < tokens->count; i++) {
         token* t = ((token**)tokens->data)[i];
         if (strcmp(t->data, "\t") == 0) {
@@ -502,10 +510,12 @@ void clean_tokens(dynamic_array* tokens)
             free(t->data);
             ALLOC_STR(t, "");
         }
+        
         remove_bad_chars(t->data);
         // remove empty tokens 
         if (strlen(t->data) == 0) {
             for (int j = i; j < tokens->count; j++) {
+                // memory leak :(, should free ((token**)tokens->data)[j]
                 ((token**)tokens->data)[j] = ((token**)tokens->data)[j + 1];
             }
             i--;

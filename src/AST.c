@@ -1106,8 +1106,57 @@ void generate_type_from_typedef(context* ctx, int typedef_loc)
 
 }
 
+void join_next_token_long(context* ctx, int loc)
+{
+    token* t1 = ((token**)ctx->tokens->data)[loc];
+    token* t2 = ((token**)ctx->tokens->data)[loc + 1];
+    if (strcmp(t2->data, "long") == 0 && strcmp(t1->data, "long") == 0) {
+        char* data_1 = malloc(sizeof(char)*(strlen(t1->data) + strlen(t2->data) + 2));
+        data_1[0] = '\0';
+        strcat(data_1, t1->data);
+        strcat(data_1, " ");
+        strcat(data_1, t2->data);
+        t1->data = data_1; // Memory leak :(, cant just free as it may be used elsewhere
+        char* data_2 = malloc(sizeof(char)*2);
+        data_2[0] = '\0';
+        t2->data = data_2; // Memory leak :(, cant just free as it may be used elsewhere
+    }
+    
+}
+
+void join_next_token(context* ctx, int loc)
+{
+    token* t1 = ((token**)ctx->tokens->data)[loc];
+    token* t2 = ((token**)ctx->tokens->data)[loc + 1];
+    join_next_token_long(ctx, loc + 1);
+    char* data_1 = malloc(sizeof(char)*(strlen(t1->data) + strlen(t2->data) + 2));
+    data_1[0] = '\0';
+    strcat(data_1, t1->data);
+    strcat(data_1, " ");
+    strcat(data_1, t2->data);
+    t1->data = data_1; // Memory leak :(, cant just free as it may be used elsewhere
+    char* data_2 = malloc(sizeof(char)*2);
+    data_2[0] = '\0';
+    t2->data = data_2; // Memory leak :(, cant just free as it may be used elsewhere
+}
+
+void join_types(context* ctx)
+{
+    for (int i = 0; i < ctx->tokens->count; i++) {
+        token* t = ((token**)ctx->tokens->data)[i];
+        if (strcmp(t->data, "long") == 0) {
+            join_next_token_long(ctx, i);
+        }
+        if (strcmp(t->data, "unsigned") == 0) {
+            join_next_token(ctx, i);
+        }
+    }
+}
+
 void generate_types(context* ctx)
 {
+    join_types(ctx);
+    clean_tokens(ctx->tokens);
     for (int i = 0; i < ctx->tokens->count; i++) {
         token* t = ((token**)ctx->tokens->data)[i];
         if (t->type == TYPEDEF) {
