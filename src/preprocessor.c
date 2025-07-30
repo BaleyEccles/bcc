@@ -69,7 +69,9 @@ void replace_tokens_with_array(dynamic_array* tokens_dst, token* t, int start_ra
         if (strcmp(current_token->data, t->data) == 0) {
             da_shift(tokens_dst, token*, i, len - 1);
             for (int j = 0; j < len; j++) {
-                ((token**)tokens_dst->data)[j + i] = ((token**)tokens_src->data)[j];
+                token* new_token = malloc(sizeof(token));
+                memcpy(new_token, ((token**)tokens_src->data)[j], sizeof(token));
+                ((token**)tokens_dst->data)[j + i] = new_token;
             }
         }
     }
@@ -84,8 +86,10 @@ void replace_tokens(dynamic_array* tokens, token* t, int start_range, int end_ra
         if (strcmp(current_token->data, t->data) == 0) {
             da_shift(tokens, token*, i, len - 1);
             for (int j = 0; j < len; j++) {
-                ((token**)tokens->data)[j + i] = ((token**)tokens->data)[j + start];
+                token* new_token = malloc(sizeof(token));
+                memcpy(new_token, ((token**)tokens->data)[j + start], sizeof(token));
                 
+                ((token**)tokens->data)[j + i] = new_token;
                 if (j + i > tokens->count || j + start > tokens->count) {
                     fprintf(stderr, "%s:%d: error: Messed up ranges in replace_tokens\n", __FILE__, __LINE__);
                 }
