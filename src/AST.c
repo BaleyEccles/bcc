@@ -1009,59 +1009,6 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
     */
 }
 
-void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
-{
-    token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
-    name_token->type = TYPE;
-    int opening_paren_loc = typedef_loc + 2;
-    // TODO: This fails when we are typedef-ing a struct from another type
-    // Example:
-    // struct struct_1 { int a; };
-    // typedef struct struct_1 struct_2;
-    int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
-    
-    
-    type* struct_type = malloc(sizeof(type));
-    struct_type->string = name_token->data;
-    struct_type->type_type = STRUCT;
-    struct_type->size = 0;
-    struct_type->ptr_count = 0;
-    
-    struct_data* u = malloc(sizeof(struct_data));
-    u->members = malloc(sizeof(dynamic_array));
-    da_init(u->members, varible*);
-    
-    for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
-        varible* var = malloc(sizeof(varible));
-        var->stack_pos = 0;
-        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
-        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
-        da_append(u->members, var, varible*);
-        i += var->type->ptr_count + 3;
-    }
-    int stack_pos = 0;
-    for (int i = 0; i < u->members->count; i++) {
-        varible* var = ((varible**)u->members->data)[i];
-        struct_type->size += var->type->size;
-        var->stack_pos = stack_pos;
-        stack_pos += var->type->size;
-    }
-    struct_type->data = (void*)u;
-    
-    
-    da_append(ctx->types, struct_type, type*);
-    
-    /*
-    printf("gen %s with size %i\n", struct_type->string, struct_type->size);
-    for(int i = 0; i < ((union_data*)struct_type->data)->members->count; i++) {
-        printf("%s %i %s %i\n", ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->string,
-               ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->ptr_count,
-               ((varible**)((union_data*)struct_type->data)->members->data)[i]->name,
-               ((varible**)((union_data*)struct_type->data)->members->data)[i]->stack_pos);
-    }
-    */
-}
-
 // typedef char* string;
 void generate_type_from_type(context* ctx, int typedef_loc, int semicolon_loc)
 {
@@ -1079,10 +1026,70 @@ void generate_type_from_type(context* ctx, int typedef_loc, int semicolon_loc)
     da_append(ctx->types, type_type, type*);
 }
 
+void generate_struct(context* ctx, int typedef_loc, int semicolon_loc)
+{
+    token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
+    name_token->type = TYPE;
+    int opening_paren_loc = typedef_loc + 2;
+    printf("next: %s\n",  ((token**)ctx->tokens->data)[opening_paren_loc]->data);
+    if (((token**)ctx->tokens->data)[opening_paren_loc]->type != PAREN_CURLY_OPEN) {
+        // TODO: This fails when we are typedef-ing a struct from another type
+        // Example:
+        // struct struct_1 { int a; };
+        // typedef struct struct_1 struct_2;
+        //fprintf(stderr, "%s:%d: TODO: See comment at this location for whats wrong\n", __FILE__, __LINE__);
+        generate_type_from_type(ctx, opening_paren_loc - 1, semicolon_loc);
+    } else {
+        int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
+    
+        type* struct_type = malloc(sizeof(type));
+        struct_type->string = name_token->data;
+        struct_type->type_type = STRUCT;
+        struct_type->size = 0;
+        struct_type->ptr_count = 0;
+    
+        struct_data* u = malloc(sizeof(struct_data));
+        u->members = malloc(sizeof(dynamic_array));
+        da_init(u->members, varible*);
+    
+        for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
+            varible* var = malloc(sizeof(varible));
+            var->stack_pos = 0;
+            var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
+            var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
+            da_append(u->members, var, varible*);
+            i += var->type->ptr_count + 3;
+        }
+        int stack_pos = 0;
+        for (int i = 0; i < u->members->count; i++) {
+            varible* var = ((varible**)u->members->data)[i];
+            struct_type->size += var->type->size;
+            var->stack_pos = stack_pos;
+            stack_pos += var->type->size;
+        }
+        struct_type->data = (void*)u;
+    
+    
+        da_append(ctx->types, struct_type, type*);
+    }
+    /*
+    printf("gen %s with size %i\n", struct_type->string, struct_type->size);
+    for(int i = 0; i < ((union_data*)struct_type->data)->members->count; i++) {
+        printf("%s %i %s %i\n", ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->string,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->type->ptr_count,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->name,
+               ((varible**)((union_data*)struct_type->data)->members->data)[i]->stack_pos);
+    }
+    */
+}
+
+
+
 void generate_type_from_typedef(context* ctx, int typedef_loc)
 {
     int end = find_semi_colon_skip_parentheses(ctx->tokens, typedef_loc);
     token* next = ((token**)ctx->tokens->data)[typedef_loc + 1];
+    printf("%s, %s, %s\n", ((token**)ctx->tokens->data)[typedef_loc + 1]->data, ((token**)ctx->tokens->data)[typedef_loc + 2]->data, ((token**)ctx->tokens->data)[typedef_loc + 3]->data);
     if (token_is_key_word(next)) {
         TOKEN_TYPE ty = next->type;
         switch (ty) {
@@ -1091,6 +1098,7 @@ void generate_type_from_typedef(context* ctx, int typedef_loc)
             break;
         }
         case STRUCT: {
+            printf("STRUCT\n");
             generate_struct(ctx, typedef_loc, end);
             break;
         }
@@ -1102,6 +1110,7 @@ void generate_type_from_typedef(context* ctx, int typedef_loc)
     } else {
         generate_type_from_type(ctx, typedef_loc, end);
     }
+    printf("generated_type %s\n", ((type**)ctx->types->data)[ctx->types->count - 1]->string);
     
 
 }
