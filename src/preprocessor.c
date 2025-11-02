@@ -22,7 +22,7 @@ PREPROCESSORS get_preproccessor(dynamic_array* tokens, int location)
     }
 
     if (t2 != NULL) {
-        for (int i = 0; i < sizeof(preprocessors)/sizeof(preprocessors[0]); i++) {
+        for (size_t i = 0; i < sizeof(preprocessors)/sizeof(preprocessors[0]); i++) {
             char* type = preprocessors[i].str;
             if (strcmp(t2->data, type) == 0 && strcmp(t1->data, "#") == 0) {
                 return i;
@@ -326,7 +326,7 @@ void do_preprocessor_ifndef(dynamic_array* tokens, dynamic_array* defines, dynam
 {
     
     int ifndef_token_loc = find_token_loc(tokens, start, end, "ifndef");
-    int loc = 0;
+    
     token* define_token = find_define_token(tokens, ifndef_token_loc + 1, end);
     
     int endif_token_loc = find_endif(tokens, ifndef_token_loc + 1);
@@ -363,11 +363,11 @@ int evaluate_expression(dynamic_array* tokens, dynamic_array* defines, int start
         token* t = ((token**)ts->data)[i];
         if (strcmp(t->data, "defined") == 0) {
             int loc = i + 1;
-            int end_defined = loc;
+            //int end_defined = loc;
             token* t2 = ((token**)ts->data)[loc];
             if (strcmp(t2->data, "(") == 0) {
                 loc += 1;
-                end_defined = loc + 1;
+                //end_defined = loc + 1;
                 t2 = ((token**)ts->data)[loc];
             }
             
@@ -534,11 +534,11 @@ void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dyna
         }
         
     }
-    
-    bool external_file = false;
-    if (include_name[0] == '<') {
-        external_file = true;
-    }
+    // :TODO: Handle external files
+    //bool external_file = false;
+    //if (include_name[0] == '<') {
+    //    external_file = true;
+    //}
     int len = strlen(include_name);
     for (int i = 0; i < len; i++) {
         if (include_name[i] == '<' || include_name[i] == '>' || include_name[i] == '"') {

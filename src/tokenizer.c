@@ -117,7 +117,7 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
 
 bool token_is_parentheses(token* t) {
     if (t != NULL) {
-        for (int i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
+        for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
             if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
                 return true;
             }
@@ -127,7 +127,7 @@ bool token_is_parentheses(token* t) {
 }
 
 TOKEN_TYPE get_token_type_parentheses(token* t) {
-    for (int i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
+    for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
         if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
             return parentheses_mapping[i].type;
         }
@@ -189,7 +189,7 @@ static const mapping key_words_mapping[] = {
 };
 
 TOKEN_TYPE get_token_type_key_word(token* t) {
-    for (int i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
+    for (size_t i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
         if (strcmp(key_words_mapping[i].string, t->data) == 0) {
             return key_words_mapping[i].type;
         }
@@ -199,7 +199,7 @@ TOKEN_TYPE get_token_type_key_word(token* t) {
 }
 
 bool token_is_key_word(token* t) {
-    for (int i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
+    for (size_t i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
         if (strcmp(key_words_mapping[i].string, t->data) == 0) {
             return true;
         }
@@ -209,7 +209,7 @@ bool token_is_key_word(token* t) {
 
 bool token_is_operator(token* t)
 {
-    for (int i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
+    for (size_t i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
         if (strcmp(operator_mapping[i].string, t->data) == 0) {
             return true;
         }
@@ -219,7 +219,7 @@ bool token_is_operator(token* t)
 
 TOKEN_TYPE get_token_type_operator(token* t)
 {
-    for (int i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
+    for (size_t i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
         if (strcmp(operator_mapping[i].string, t->data) == 0) {
             return operator_mapping[i].type;
         }
@@ -327,7 +327,7 @@ bool token_is_empty(token* t) {
     if (strlen(t->data) == 0) {
         return true;
     }
-    for (int i = 0; i < strlen(t->data); i++) {
+    for (size_t i = 0; i < strlen(t->data); i++) {
         if (t->data[i] != ' ') {
             return false;
         }

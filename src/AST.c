@@ -548,7 +548,7 @@ void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, con
     da_append(node->children, equals_node, AST_node*);
 }
 
-void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, int start, int end)
+void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, int start)
 {
     // Varible
     AST_node* varible_node = malloc(sizeof(AST_node));
@@ -590,7 +590,7 @@ void create_varible_node(AST_node* scope, AST_node* node, context* ctx, token* t
         create_declare_and_modify_varible_node(scope, node, ctx, start, end);
         return;
     } else {
-        create_declare_varible_node(scope, node, ctx, start, end);
+        create_declare_varible_node(scope, node, ctx, start);
         return;
     }
     fprintf(stderr, "%s:%d: error: Unable to create varible node\n", __FILE__, __LINE__);
@@ -882,18 +882,18 @@ void generate_function_inputs(context* ctx, AST_node* node, int start, int end)
         
         fi->node_type = VARIBLE;
             
-        varible* varible = malloc(sizeof(varible));
-        varible->stack_pos = 0;
-        varible->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
+        varible* var = malloc(sizeof(varible));
+        var->stack_pos = 0;
+        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
         
 
-        fi->token = ((token**)ctx->tokens->data)[i + varible->type->ptr_count + 1];
-        varible->name = ((token**)ctx->tokens->data)[i + varible->type->ptr_count + 1]->data;
-        fi->data = (void*)varible;
+        fi->token = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1];
+        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
+        fi->data = (void*)var;
         
         da_append(node->children, fi, AST_node*);
 
-        i += varible->type->ptr_count + 3;
+        i += var->type->ptr_count + 3;
     }
 }
 
@@ -1296,7 +1296,7 @@ int generate_stack_posistions(context* ctx, AST_node* scope, AST_node* node, int
 void print_vars(AST_node* node)
 {
     if (node->node_type == VARIBLE) {
-        varible* var = ((varible*)node->data);
+        //varible* var = ((varible*)node->data);
     }
     for (int i = 0; i < node->children->count; i++) {
         print_vars(((AST_node**)node->children->data)[i]);
