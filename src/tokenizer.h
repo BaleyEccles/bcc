@@ -16,9 +16,6 @@
         strcpy(TOKEN->data, STR);               \
     }
 
-
-
-
 typedef enum {
     ERROR = 0,
     TYPE,

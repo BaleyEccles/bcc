@@ -8,7 +8,7 @@
 #include "assembly.h"
 #include "preprocessor.h"
 
-// https://en.wikipedia.org/wiki/C_data_typese
+// https://en.wikipedia.org/wiki/C_data_types
 void generate_default_types(dynamic_array* ts)
 {
     type* type_void = malloc(sizeof(type));
@@ -119,7 +119,6 @@ int main(int argc, char *argv[])
     char* input_file_name = NULL;
     char* output_file = NULL;
     for (int i = 1; i < argc; i++) {
-        //printf("Argument %d: %s\n", i, argv[i]);
         flag[0] = argv[i][0];
         flag[1] = argv[i][1];
         flag[2] = '\0';
@@ -195,7 +194,6 @@ int main(int argc, char *argv[])
     
     for (int i = 0; i < tokens.count; i++) {
         get_token_type(&types, &tokens, ((token**)tokens.data)[i]);
-        //printf("token with index %i at %i: %s and type %i\n", i,  ((token**)tokens.data)[i]->pos_in_file, ((token**)tokens.data)[i]->data, ((token**)tokens.data)[i]->type);
     }
 
     
@@ -376,7 +374,6 @@ int main(int argc, char *argv[])
         char* graph_name = malloc(sizeof(char)*(10 +strlen(((function*)f->data)->name)));
         
         sprintf(graph_name, "graph_%s.gv", ((function*)f->data)->name);
-        //printf("f: %s\n", graph_name);
         generate_graphviz_from_AST_node(f, graph_name);
         free(graph_name);
     }
@@ -401,12 +398,12 @@ int main(int argc, char *argv[])
     asm_file = fopen(asm_file_name, "r");
     free(asm_file_name);
 
-    printf("INFO: Running: %s\n", as_command);
+    fprintf(stderr, "INFO: Running: %s\n", as_command);
     if (system(as_command) != 0) {
         fprintf(stderr, "%s:%d: error: command \"%s\" failed\n", __FILE__, __LINE__, as_command);
     }
     free(as_command);
-    printf("INFO: Running: %s\n", ld_command);
+    fprintf(stderr, "INFO: Running: %s\n", ld_command);
     if (system(ld_command) != 0) {
         fprintf(stderr, "%s:%d: error: command \"%s\" failed\n", __FILE__, __LINE__, ld_command);
     }

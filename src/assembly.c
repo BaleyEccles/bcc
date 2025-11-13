@@ -680,7 +680,6 @@ char generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 
     } else if (node->node_type == FUNCTION_CALL) {
         output = generate_asm_function_call(file, scope, node);
-        printf("%i\n", node->token->pos_in_file);
     } else if (node->node_type == KEY_WORD) {
         key_word* kw = (key_word*)node->data;
         switch (kw->key_word_type) {

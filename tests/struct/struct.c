@@ -6,13 +6,20 @@ typedef struct {//  Stack pos
 } s_t;        // +
               // = 14
 
+struct s2_t {
+    int a;
+};
+
 int main() {
     int i = 1;
     s_t s;
     s.a = "test string";
-    s.c = 7;
+    s.c = i;
     s.b = 3;
     s.b = 4;
+
+    struct s2_t s2;
+    s2.a = 1;
     
-    return s.b + s.c - i;
+    return s.b + s.c + i + s2.a;
 }
