@@ -485,7 +485,7 @@ void do_preprocessor_else(dynamic_array* tokens, dynamic_array* defines, dynamic
 
 void do_preprocessor_include(dynamic_array* tokens, dynamic_array* defines, dynamic_array* include_paths, int start, int end)
 {
-    char* include_name;
+    char* include_name = NULL;
     token* include_token = NULL;
     int first_space = -1;
     for (int i = start; i < end; i++) {
@@ -595,7 +595,7 @@ void do_preprocessor_undefine(dynamic_array* tokens, dynamic_array* defines, int
 {
     int i = find_token_loc(tokens, start, end, "undef");
     
-    token* name;
+    token* name = NULL;
     i++;
     for (i = i; i < end; i++) {
         name = ((token**)tokens->data)[i];
@@ -675,7 +675,7 @@ void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int s
     // This will determine if it is a function macro, or a simple find and replace
     // #define MACRO(a, b) a + b
     // ^start                  ^end
-    token* type;
+    token* type = NULL;
     int i;
     for (i = start + 1; i < tokens->count; i++) {
         type = ((token**)tokens->data)[i];
@@ -683,7 +683,7 @@ void do_preprocessor_define(dynamic_array* tokens, dynamic_array* defines, int s
             break;
         }
     }
-    token* name;
+    token* name = NULL;
     for (i = i + 1; i < tokens->count; i++) {
         name = ((token**)tokens->data)[i];
         if (strcmp(name->data, " ") != 0 && strcmp(name->data, "") != 0) {

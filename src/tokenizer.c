@@ -438,11 +438,13 @@ token* get_next_token(FILE* f, dynamic_array* tokens, int* start_pos)
     bool token_found = false;
     
     while (!token_found) {
-        int len = end_pos - *start_pos;
+        size_t len = end_pos - *start_pos;
         
         char* current_str = malloc((len + 1)*sizeof(char));
         fseek(f, *start_pos, SEEK_SET);
-        fread(current_str, sizeof(char), len, f);
+        if (fread(current_str, sizeof(char), len, f) != len) {
+            fprintf(stderr, "%s:%d: error: fread failed on: \"%s\"\n", __FILE__, __LINE__, current_str);
+        }
         current_str[len] = '\0';
 
         if (is_token(f, tokens, current_str, start_pos, end_pos)) {

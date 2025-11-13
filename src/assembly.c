@@ -444,7 +444,7 @@ char asm_varible(FILE* file, AST_node* scope, AST_node* node)
 
 char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
 {
-    char output;
+    char output = ' ';
     switch (node->node_type) {
     case OPERATOR: {
         AST_node* child1 = ((AST_node**)node->children->data)[0];
@@ -672,7 +672,7 @@ void generate_access_asm(FILE* file, AST_node* scope, AST_node* node, char size_
 
 char generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 {
-    char output;
+    char output = ' ';
     if (node->node_type == OPERATOR && ((operator*)node->data)->type == EQUALS) {
         output = generate_rvalue_asm(file, scope, ((AST_node**)node->children->data)[1]);
         generate_access_asm(file, scope,  ((AST_node**)node->children->data)[0], output);
@@ -680,6 +680,7 @@ char generate_asm_from_node(FILE* file, AST_node* scope, AST_node* node)
 
     } else if (node->node_type == FUNCTION_CALL) {
         output = generate_asm_function_call(file, scope, node);
+        printf("%i\n", node->token->pos_in_file);
     } else if (node->node_type == KEY_WORD) {
         key_word* kw = (key_word*)node->data;
         switch (kw->key_word_type) {

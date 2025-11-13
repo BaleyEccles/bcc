@@ -147,7 +147,6 @@ int main(int argc, char *argv[])
     }
     if (input_file_name == NULL) {
         fprintf(stderr, "%s:%d: error: No input file supplied\n", __FILE__, __LINE__);
-        input_file_name = "./tests/if_statement/if_statement.c";
     }
 
 
@@ -346,8 +345,9 @@ int main(int argc, char *argv[])
     da_init(&include_paths, char*);
     
     da_append(&include_paths, "./", char*);
-    da_append(&include_paths, "/usr/local/musl/include", char*);
-    //da_append(&include_paths, "/usr/include", char*);
+    da_append(&include_paths, "/home/baley/opt/programs/musl/include", char*);
+    da_append(&include_paths, "/home/baley/opt/programs/musl/obj/include", char*);
+    da_append(&include_paths, "/usr/include", char*);
     //da_append(&include_paths, "/usr/include/linux", char*);
     //da_append(&include_paths, "/usr/lib/gcc/x86_64-pc-linux-gnu/15.1.1/include", char*);
 
@@ -402,10 +402,14 @@ int main(int argc, char *argv[])
     free(asm_file_name);
 
     printf("INFO: Running: %s\n", as_command);
-    system(as_command);
+    if (system(as_command) != 0) {
+        fprintf(stderr, "%s:%d: error: command \"%s\" failed\n", __FILE__, __LINE__, as_command);
+    }
     free(as_command);
     printf("INFO: Running: %s\n", ld_command);
-    system(ld_command);
+    if (system(ld_command) != 0) {
+        fprintf(stderr, "%s:%d: error: command \"%s\" failed\n", __FILE__, __LINE__, ld_command);
+    }
     free(ld_command);
 
     for (int i = 0; i < types.count; i++) {
