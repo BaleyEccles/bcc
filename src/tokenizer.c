@@ -11,14 +11,76 @@ bool token_is_type(token* t, dynamic_array* ts) {
     return false;
 }
 
-static const mapping parentheses_mapping[] = {
-    {"(", PAREN_OPEN},
-    {")", PAREN_CLOSE},
-    {"{", PAREN_CURLY_OPEN},
-    {"}", PAREN_CURLY_CLOSE},
-    {"[", PAREN_SQUARE_OPEN},
-    {"]", PAREN_SQUARE_CLOSE},
-};
+bool token_is_parentheses(token* t) {
+    if (t != NULL) {
+        for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
+            if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+bool token_is_modifier(token* t)
+{
+    return (t->type == EQUALS        ||
+            t->type == PLUS_EQUALS   ||
+            t->type == MINUS_EQUALS  ||
+            t->type == TIMES_EQUALS  ||
+            t->type == DIVIDE_EQUALS ||
+            t->type == MODULO_EQUALS);
+}
+
+bool token_is_string(token* t)
+{
+    return t->data[0] == '"';
+
+}
+
+// TODO: Add support for floats
+bool token_is_number(token* t)
+{
+    return isdigit(t->data[0]);
+}
+
+bool token_is_key_word(token* t) {
+    for (size_t i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
+        if (strcmp(key_words_mapping[i].string, t->data) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool token_is_operator(token* t)
+{
+    for (size_t i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
+        if (strcmp(operator_mapping[i].string, t->data) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool token_is_semicolon(token* t)
+{
+    return (';' == t->data[0]);
+}
+
+bool token_is_empty(token* t) {
+    if (strlen(t->data) == 0) {
+        return true;
+    }
+    for (size_t i = 0; i < strlen(t->data); i++) {
+        if (t->data[i] != ' ') {
+            return false;
+        }
+    }
+    return true;
+}
+
 
 
 int get_opening_paren_location(dynamic_array* tokens, int starting_token_location)
@@ -115,16 +177,6 @@ int get_closing_paren_location(dynamic_array* tokens, int starting_token_locatio
 }
 
 
-bool token_is_parentheses(token* t) {
-    if (t != NULL) {
-        for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
-            if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
 
 TOKEN_TYPE get_token_type_parentheses(token* t) {
     for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i++) {
@@ -136,57 +188,7 @@ TOKEN_TYPE get_token_type_parentheses(token* t) {
     return ERROR;
 }
 
-bool token_is_modifier(token* t)
-{
-    return (t->type == EQUALS        ||
-            t->type == PLUS_EQUALS   ||
-            t->type == MINUS_EQUALS  ||
-            t->type == TIMES_EQUALS  ||
-            t->type == DIVIDE_EQUALS ||
-            t->type == MODULO_EQUALS);
-}
 
-bool token_is_string(token* t)
-{
-    return t->data[0] == '"';
-
-}
-
-// TODO: Add support for floats
-bool token_is_number(token* t)
-{
-    return isdigit(t->data[0]);
-}
-
-
-static const mapping key_words_mapping[] = {
-    {"auto"     , AUTO},
-    {"break"    , BREAK},
-    {"case"     , CASE},
-    {"const"    , CONST},
-    {"continue" , CONTINUE},
-    {"default"  , DEFAULT},
-    {"do"       , DO},
-    {"else"     , ELSE},
-    {"enum"     , ENUM},
-    {"extern"   , EXTERN},
-    {"for"      , FOR},
-    {"goto"     , GOTO},
-    {"if"       , IF},
-    {"inline"   , INLINE},
-    {"register" , REGISTER},
-    {"restrict" , RESTRICT},
-    {"return"   , RETURN},
-    {"sizeof"   , SIZEOF},
-    {"static"   , STATIC},
-    {"struct"   , STRUCT},
-    {"switch"   , SWITCH},
-    {"typedef"  , TYPEDEF},
-    {"typeof"   , TYPEOF},
-    {"union"    , UNION},
-    {"volatile" , VOLATILE},
-    {"while"    , WHILE},
-};
 
 TOKEN_TYPE get_token_type_key_word(token* t) {
     for (size_t i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
@@ -196,25 +198,6 @@ TOKEN_TYPE get_token_type_key_word(token* t) {
     }
     fprintf(stderr, "%s:%d: error: Unable to find key word from token with string %s and in position %i\n", __FILE__, __LINE__, t->data, t->pos_in_file);
     return ERROR;
-}
-
-bool token_is_key_word(token* t) {
-    for (size_t i = 0; i < sizeof(key_words_mapping)/sizeof(key_words_mapping[0]); i++) {
-        if (strcmp(key_words_mapping[i].string, t->data) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool token_is_operator(token* t)
-{
-    for (size_t i = 0; i < sizeof(operator_mapping)/sizeof(operator_mapping[0]); i++) {
-        if (strcmp(operator_mapping[i].string, t->data) == 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 TOKEN_TYPE get_token_type_operator(token* t)
@@ -227,81 +210,8 @@ TOKEN_TYPE get_token_type_operator(token* t)
     fprintf(stderr, "%s:%d: error: Unable to find operator from token with string %s and in position %i\n", __FILE__, __LINE__, t->data, t->pos_in_file);
     return ERROR;
 }
-    
-bool token_is_semicolon(token* t)
-{
-    return (';' == t->data[0]);
-}
 
-int get_ptr_count(dynamic_array* tokens, token* t)
-{
-    
-    int loc = get_token_location(tokens, t) + 1;
-    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
-    int ptr_count = 0;
-    while (((token**)tokens->data)[loc]->type == TIMES) {
-        loc++;
-        ptr_count++;
-        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
-    }
-        
-    return ptr_count;
-}
 
-bool is_type_defined(dynamic_array* ts, token* t, int ptr_count)
-{
-    for (int i = 0; i < ts->count; i++) {
-        type* ty = ((type**)ts->data)[i];
-        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
-            return true;
-        }
-    }
-    return false;
-}
-
-type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
-{
-    int ptr_count = get_ptr_count(tokens, t);
-    
-    char* type_name = t->data;
-    if (strcmp(type_name, "unsigned") == 0) {
-        int next_loc = get_token_location(tokens, t) + 1;
-        char* next = ((token**)tokens->data)[next_loc]->data;
-        char* tmp = malloc(sizeof(char)*(strlen(type_name) + strlen(next) + 2));
-        tmp[0] = '\0';
-        strcat(tmp, type_name);
-        strcat(tmp, " ");
-        strcat(tmp, next);
-        type_name = tmp;
-    }
-    
-    for (int i = 0; i < types->count; i++) {
-        type* ty = ((type**)types->data)[i];
-        if (strcmp(ty->string, type_name) == 0 && ty->ptr_count == ptr_count) {
-            return ty;
-        }
-    }
-    fprintf(stderr, "%s:%d: error: unable to find type from token %s %i\n", __FILE__, __LINE__, type_name, t->pos_in_file);
-    *(int*)0 = 0;
-    return NULL;
-}
-
-void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
-{
-    int ptr_count = get_ptr_count(tokens, t);
-    if (!is_type_defined(ts, t, ptr_count)) {
-        type* ty = malloc(sizeof(type));
-        ty->ptr_count = ptr_count;
-        ty->string = t->data;
-        ty->type_type = 0;
-        if (ptr_count > 0) {
-            ty->size = 8;
-        } else {
-            fprintf(stderr, "%s:%d: TODO: type size was not defined\n", __FILE__, __LINE__);
-        }
-        da_append(ts, ty, type*);
-    }
-}
 
 void get_token_type(dynamic_array* ts, dynamic_array* tokens, token* t)
 {
@@ -323,16 +233,137 @@ void get_token_type(dynamic_array* ts, dynamic_array* tokens, token* t)
     }
 }
 
-bool token_is_empty(token* t) {
-    if (strlen(t->data) == 0) {
-        return true;
+
+token* get_next_token(FILE* f, dynamic_array* tokens, int* start_pos)
+{
+    token* t = malloc(sizeof(token));
+    int end_pos = *start_pos + 1;
+    bool token_found = false;
+    
+    while (!token_found) {
+        size_t len = end_pos - *start_pos;
+        
+        char* current_str = malloc((len + 1)*sizeof(char));
+        fseek(f, *start_pos, SEEK_SET);
+        if (fread(current_str, sizeof(char), len, f) != len) {
+            fprintf(stderr, "%s:%d: error: fread failed on: \"%s\"\n", __FILE__, __LINE__, current_str);
+        }
+        current_str[len] = '\0';
+
+        if (is_token(f, tokens, current_str, start_pos, end_pos)) {
+            token_found = true;
+            t->data = current_str;
+            t->pos_in_file = *start_pos - len;
+            
+        } else {
+            free(current_str);
+        }
+        end_pos++;
     }
-    for (size_t i = 0; i < strlen(t->data); i++) {
-        if (t->data[i] != ' ') {
-            return false;
+
+    return t;
+}
+
+int get_token_location(dynamic_array* tokens, token* t)
+{
+    for (int i = 0; i < tokens->count; i++) {
+        if (((token**)tokens->data)[i] == t) {
+            return i;
         }
     }
-    return true;
+    fprintf(stderr, "%s:%d: error: Unable to find token index\n", __FILE__, __LINE__);
+    return -1;
+}
+
+int get_ptr_count(dynamic_array* tokens, token* t)
+{
+    // int* a[10][10];
+    // ^t
+    // ptr_count = 3
+    
+    int loc = get_token_location(tokens, t) + 1;
+    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    int ptr_count = 0;
+
+    // Deal with the *'s
+    while (((token**)tokens->data)[loc]->type == TIMES) {
+        loc++;
+        ptr_count++;
+        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    }
+    
+    // Deal with the [X]'s
+    if (((token**)tokens->data)[loc]->type == PAREN_OPEN) {
+        loc = get_closing_paren_location(tokens, loc);
+    }
+    loc++;
+    
+    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    while (((token**)tokens->data)[loc]->type == PAREN_SQUARE_OPEN) {
+        loc = get_closing_paren_location(tokens, loc) + 1;
+        ptr_count++;
+        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    }
+
+    return ptr_count;
+}
+
+
+type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
+{
+    int ptr_count = get_ptr_count(tokens, t);
+    
+    char* type_name = t->data;
+    if (strcmp(type_name, "unsigned") == 0) {
+        int next_loc = get_token_location(tokens, t) + 1;
+        char* next = ((token**)tokens->data)[next_loc]->data;
+        char* tmp = malloc(sizeof(char)*(strlen(type_name) + strlen(next) + 2));
+        tmp[0] = '\0';
+        strcat(tmp, type_name);
+        strcat(tmp, " ");
+        strcat(tmp, next);
+        type_name = tmp;
+    }
+    printf("type: %s %i\n", type_name, t->pos_in_file);
+    
+    for (int i = 0; i < types->count; i++) {
+        type* ty = ((type**)types->data)[i];
+        if (strcmp(ty->string, type_name) == 0 && ty->ptr_count == ptr_count) {
+            return ty;
+        }
+    }
+    fprintf(stderr, "%s:%d: error: unable to find type from token %s %i\n", __FILE__, __LINE__, type_name, t->pos_in_file);
+    *(int*)0 = 0;
+    return NULL;
+}
+
+bool is_type_defined(dynamic_array* ts, token* t, int ptr_count)
+{
+    for (int i = 0; i < ts->count; i++) {
+        type* ty = ((type**)ts->data)[i];
+        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
+{
+    int ptr_count = get_ptr_count(tokens, t);
+    if (!is_type_defined(ts, t, ptr_count)) {
+        type* ty = malloc(sizeof(type));
+        ty->ptr_count = ptr_count;
+        ty->string = t->data;
+        ty->type_type = 0;
+        if (ptr_count > 0) {
+            ty->size = 8;
+        } else {
+            fprintf(stderr, "%s:%d: TODO: type size was not defined\n", __FILE__, __LINE__);
+        }
+        da_append(ts, ty, type*);
+    }
 }
 
 bool is_token_end(dynamic_array* tokens, char* str, char c_next)
@@ -427,38 +458,7 @@ bool is_token(FILE* f, dynamic_array* tokens, char* current_str, int* start_pos,
         return true;
     }
     
-
     return false;
-}
-
-token* get_next_token(FILE* f, dynamic_array* tokens, int* start_pos)
-{
-    token* t = malloc(sizeof(token));
-    int end_pos = *start_pos + 1;
-    bool token_found = false;
-    
-    while (!token_found) {
-        size_t len = end_pos - *start_pos;
-        
-        char* current_str = malloc((len + 1)*sizeof(char));
-        fseek(f, *start_pos, SEEK_SET);
-        if (fread(current_str, sizeof(char), len, f) != len) {
-            fprintf(stderr, "%s:%d: error: fread failed on: \"%s\"\n", __FILE__, __LINE__, current_str);
-        }
-        current_str[len] = '\0';
-
-        if (is_token(f, tokens, current_str, start_pos, end_pos)) {
-            token_found = true;
-            t->data = current_str;
-            t->pos_in_file = *start_pos - len;
-            
-        } else {
-            free(current_str);
-        }
-        end_pos++;
-    }
-
-    return t;
 }
 
 void remove_bad_chars(char* data)
@@ -485,8 +485,6 @@ void remove_bad_chars(char* data)
         }
     }
 }
-
-
 
 void untabbify_tokens(dynamic_array* tokens)
 {
@@ -553,29 +551,6 @@ void remove_comments(dynamic_array* tokens)
 }
 
 
-
-type* get_type_from_str(dynamic_array* types, char* str)
-{
-    fprintf(stderr, "%s:%d: error: USING OBSOLETE FUNCTION %s\n", __FILE__, __LINE__, str);
-    for (int i = 0; i < types->count; i++) {
-        if (strcmp(((type**)types->data)[i]->string, str) == 0) {
-            return ((type**)types->data)[i];
-        }
-    }
-    fprintf(stderr, "%s:%d: error: Unable to find type from string, was checking type %s\n", __FILE__, __LINE__, str);
-    return NULL;
-}
-
-int get_token_location(dynamic_array* tokens, token* t)
-{
-    for (int i = 0; i < tokens->count; i++) {
-        if (((token**)tokens->data)[i] == t) {
-            return i;
-        }
-    }
-    fprintf(stderr, "%s:%d: error: Unable to find token index\n", __FILE__, __LINE__);
-    return -1;
-}
 
 
 int find_semi_colon_skip_parentheses(dynamic_array* tokens, int start_location)

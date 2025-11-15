@@ -9,6 +9,7 @@
 #include "preprocessor.h"
 
 // https://en.wikipedia.org/wiki/C_data_types
+
 void generate_default_types(dynamic_array* ts)
 {
     type* type_void = malloc(sizeof(type));
@@ -96,6 +97,22 @@ void generate_default_types(dynamic_array* ts)
     da_append(ts, type_unsigned_long_long, type*);
 
     // TODO: Floats/doubles
+}
+
+// https://en.cppreference.com/w/cpp/utility/variadic/va_list / https://en.wikipedia.org/wiki/Stdarg.h
+void generate_builtin_types(dynamic_array* ts)
+{
+    type* type_va_list = malloc(sizeof(type));
+    type_va_list->string = "__builtin_va_list";
+    type_va_list->size = 8;
+    type_va_list->ptr_count = 0;
+    type_va_list->type_type = 0;
+    da_append(ts, type_va_list, type*);
+}
+
+// https://en.cppreference.com/w/cpp/utility/variadic/va_start ... / https://en.wikipedia.org/wiki/Stdarg.h
+void generate_builtin_macros(dynamic_array* defines)
+{
 }
 
 
@@ -190,6 +207,7 @@ int main(int argc, char *argv[])
 
     // Generate default types
     generate_default_types(&types);
+    generate_builtin_types(&types);
 
     
     for (int i = 0; i < tokens.count; i++) {
@@ -354,7 +372,7 @@ int main(int argc, char *argv[])
     
     
     for (int i = 0; i < tokens.count; i++) {
-        //printf("%s", ((token**)tokens.data)[i]->data);
+        printf("%s", ((token**)tokens.data)[i]->data);
     }
     clean_tokens(&tokens);
     generate_types(&ctx);

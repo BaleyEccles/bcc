@@ -267,6 +267,10 @@ AST_node* create_array_access_node(AST_node* scope, context* ctx, int start, int
     // 2:
     // (arr->data())[i + number - 3]
     // ^start       ^access_start  ^end
+
+    for (int i = start; i < end; i++) {
+        printf("T: %s\n", ((token**)ctx->tokens->data)[i]->data);
+    }
     
     AST_node* access_node = malloc(sizeof(AST_node));
     init_AST_node(access_node);
@@ -550,6 +554,7 @@ void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, con
 
 void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, int start)
 {
+    printf("nam: %s\n", ((token**)ctx->tokens->data)[start - 1]->data);
     // Varible
     AST_node* varible_node = malloc(sizeof(AST_node));
     init_AST_node(varible_node);
@@ -581,19 +586,22 @@ void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, 
 void create_varible_node(AST_node* scope, AST_node* node, context* ctx, token* t)
 {
     // char * i = ...
-    //        ^t
+    //        ^t    
     int start = get_token_location(ctx->tokens, t);
-    int end = find_semi_colon(ctx->tokens, start);
-
-    if (token_is_modifier(((token**)ctx->tokens->data)[start + 1]) ||
-        ((token**)ctx->tokens->data)[start + 1]->type == ACCESS_MEMBER) {
-        create_declare_and_modify_varible_node(scope, node, ctx, start, end);
-        return;
-    } else {
-        create_declare_varible_node(scope, node, ctx, start);
-        return;
+    int end = find_semi_colon_skip_parentheses(ctx->tokens, start);
+    
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)ctx->tokens->data)[i];
+        if (token_is_parentheses(t)) {
+            i = get_closing_paren_location(ctx->tokens, i);
+        }
+        if (token_is_modifier(t)) {
+            create_declare_and_modify_varible_node(scope, node, ctx, start, end);
+            return;
+        }
     }
-    fprintf(stderr, "%s:%d: error: Unable to create varible node\n", __FILE__, __LINE__);
+    
+    create_declare_varible_node(scope, node, ctx, start);
 }
 
 void create_return_node(AST_node* scope, AST_node* node, context* ctx, token* t)
@@ -792,6 +800,11 @@ int create_key_word_node(AST_node* scope, AST_node* node, context* ctx, token* t
 
 int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* token_stack)
 {
+    printf("stack:\n");
+    for(int i = 0; i < token_stack->count; i++) {
+        printf("t %i: %s\n", i, ((token**)token_stack->data)[i]->data);
+    }
+    printf("\n");
     
     if (token_stack->count == 1) {
         token* t1 = ((token**)token_stack->data)[0];
@@ -821,20 +834,24 @@ int match_tokens(AST_node* scope, AST_node* node, context* ctx, dynamic_array* t
             return find_semi_colon(ctx->tokens, get_token_location(ctx->tokens, t1));
         }   
     } if (token_stack->count >= 3) {
-        token* t1 = ((token**)token_stack->data)[0];
-        token* t2 = ((token**)token_stack->data)[token_stack->count - 2];
-        token* t3 = ((token**)token_stack->data)[token_stack->count - 1];
-        if (t1->type == TYPE && t2->type == OTHER && t3->type == EQUALS) {
-            // char * i = ...;
-            // Initalize varible
-            create_varible_node(scope, node, ctx, t2);
-            return find_semi_colon(ctx->tokens, get_token_location(ctx->tokens, t1));
+        // char * i = ...;
+        // int a;
+        // int a[10];
+
+        if (((token**)token_stack->data)[0]->type == TYPE) {
+            for (int i = 0; i < token_stack->count; i++) {
+                token* t = ((token**)token_stack->data)[i];
+                if (token_is_parentheses(t)) {
+                    i = get_closing_paren_location(token_stack, i);
+                }
+                if (t->type == OTHER) {
+                    create_varible_node(scope, node, ctx, t);
+                    return find_semi_colon_skip_parentheses(ctx->tokens, get_token_location(ctx->tokens, t));
+                }
+            }
         }
-        if (t1->type == TYPE && t2->type == OTHER && t3->type == SEMICOLON) {
-            // int a;
-            create_varible_node(scope, node, ctx, t2);
-            return find_semi_colon(ctx->tokens, get_token_location(ctx->tokens, t1));
-        }
+                
+
     }
 
     if (((token**)token_stack->data)[token_stack->count - 1]->type == SEMICOLON ||
@@ -983,8 +1000,9 @@ void generate_union(context* ctx, int typedef_loc, int semicolon_loc)
     union_data* u = malloc(sizeof(union_data));
     u->members = malloc(sizeof(dynamic_array));
     da_init(u->members, varible*);
-    
+
     for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
+        printf("type: %s\n", ((token**)ctx->tokens->data)[i]->data);
         varible* var = malloc(sizeof(varible));
         var->stack_pos = 0;
         var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
@@ -1025,6 +1043,19 @@ void generate_type_from_type(context* ctx, int typedef_loc, int semicolon_loc)
     
 }
 
+void generate_struct_members(context* ctx, dynamic_array* members, int opening_paren_loc, int closing_paren_loc)
+{
+    for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
+        varible* var = malloc(sizeof(varible));
+        var->stack_pos = 0;
+        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
+        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
+        da_append(members, var, varible*);
+
+        i = find_semi_colon_skip_parentheses(ctx->tokens, i) + 1;
+    }
+}
+
 void generate_struct(context* ctx, int struct_loc, int semicolon_loc)
 {
     if (token_is_type(((token**)ctx->tokens->data)[struct_loc + 1], ctx->types)) {return;};
@@ -1044,15 +1075,8 @@ void generate_struct(context* ctx, int struct_loc, int semicolon_loc)
         struct_data* u = malloc(sizeof(struct_data));
         u->members = malloc(sizeof(dynamic_array));
         da_init(u->members, varible*);
-    
-        for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
-            varible* var = malloc(sizeof(varible));
-            var->stack_pos = 0;
-            var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
-            var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
-            da_append(u->members, var, varible*);
-            i += var->type->ptr_count + 3;
-        }
+        generate_struct_members(ctx, u->members, opening_paren_loc, closing_paren_loc);
+        
         int stack_pos = 0;
         for (int i = 0; i < u->members->count; i++) {
             varible* var = ((varible**)u->members->data)[i];
@@ -1069,9 +1093,16 @@ void generate_struct(context* ctx, int struct_loc, int semicolon_loc)
 
 void generate_struct_from_typedef(context* ctx, int previous_token_loc, int semicolon_loc)
 {
+    for (int i = previous_token_loc; i < semicolon_loc; i++) {
+        printf("%s\n", ((token**)ctx->tokens->data)[i]->data);
+    }
     token* name_token = ((token**)ctx->tokens->data)[semicolon_loc - 1];
     name_token->type = TYPE;
     int opening_paren_loc = previous_token_loc + 2;
+    if (((token**)ctx->tokens->data)[opening_paren_loc]->type != PAREN_CURLY_OPEN) {
+        generate_type_from_type(ctx, previous_token_loc + 1, semicolon_loc);
+        return;
+    }
 
     int closing_paren_loc = get_closing_paren_location(ctx->tokens, opening_paren_loc);
     
@@ -1085,14 +1116,7 @@ void generate_struct_from_typedef(context* ctx, int previous_token_loc, int semi
     u->members = malloc(sizeof(dynamic_array));
     da_init(u->members, varible*);
     
-    for (int i = opening_paren_loc + 1; i < closing_paren_loc;) {
-        varible* var = malloc(sizeof(varible));
-        var->stack_pos = 0;
-        var->type = get_type(ctx->tokens, ctx->types, ((token**)ctx->tokens->data)[i]);
-        var->name = ((token**)ctx->tokens->data)[i + var->type->ptr_count + 1]->data;
-        da_append(u->members, var, varible*);
-        i += var->type->ptr_count + 3;
-    }
+    generate_struct_members(ctx, u->members, opening_paren_loc, closing_paren_loc);
     int stack_pos = 0;
     for (int i = 0; i < u->members->count; i++) {
         varible* var = ((varible**)u->members->data)[i];

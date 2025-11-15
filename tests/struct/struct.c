@@ -7,7 +7,7 @@ typedef struct {//  Stack pos
               // = 14
 
 struct s2_t {
-    int a;
+    int a[10];
 };
 
 int main() {
@@ -19,7 +19,7 @@ int main() {
     s.b = 4;
 
     struct s2_t s2;
-    s2.a = 1;
+    s2.a[0] = 1;
     
-    return s.b + s.c + i + s2.a;
+    return s.b + s.c + i + s2.a[0];
 }

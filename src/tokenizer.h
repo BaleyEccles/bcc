@@ -163,6 +163,8 @@ bool type_is_string(type* ty);
 type* get_type_from_name_and_ptr_count(dynamic_array* types, char* str, int ptr_count);
 type* get_dereferenced_type(dynamic_array* types, type* t);
 
+void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t);
+
 
 // https://en.cppreference.com/w/cpp/language/operator_precedence.html
 // This is also in reverse order of precedence
@@ -221,5 +223,44 @@ static const mapping operator_mapping[] = {
     {">>=", RIGHT_SHIFT_EQUALS},
 };
 
+
+static const mapping key_words_mapping[] = {
+    {"auto"     , AUTO},
+    {"break"    , BREAK},
+    {"case"     , CASE},
+    {"const"    , CONST},
+    {"continue" , CONTINUE},
+    {"default"  , DEFAULT},
+    {"do"       , DO},
+    {"else"     , ELSE},
+    {"enum"     , ENUM},
+    {"extern"   , EXTERN},
+    {"for"      , FOR},
+    {"goto"     , GOTO},
+    {"if"       , IF},
+    {"inline"   , INLINE},
+    {"register" , REGISTER},
+    {"restrict" , RESTRICT},
+    {"return"   , RETURN},
+    {"sizeof"   , SIZEOF},
+    {"static"   , STATIC},
+    {"struct"   , STRUCT},
+    {"switch"   , SWITCH},
+    {"typedef"  , TYPEDEF},
+    {"typeof"   , TYPEOF},
+    {"union"    , UNION},
+    {"volatile" , VOLATILE},
+    {"while"    , WHILE},
+};
+
+
+static const mapping parentheses_mapping[] = {
+    {"(", PAREN_OPEN},
+    {")", PAREN_CLOSE},
+    {"{", PAREN_CURLY_OPEN},
+    {"}", PAREN_CURLY_CLOSE},
+    {"[", PAREN_SQUARE_OPEN},
+    {"]", PAREN_SQUARE_CLOSE},
+};
 
 #endif // TOKENIZER_H
