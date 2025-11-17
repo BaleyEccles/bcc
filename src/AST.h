@@ -7,6 +7,8 @@
 #include <string.h>
 #include "tokenizer.h"
 
+
+
 typedef struct {
     dynamic_array* tokens;
     dynamic_array* types;
@@ -102,5 +104,8 @@ int evaluate_node(AST_node* n);
 type* get_type_from_node(dynamic_array* types, AST_node* node);
 
 void print_vars(AST_node* node);
+
+extern void add_nodes_to_graphviz_file(AST_node* node, FILE* f, int depth);
+extern void generate_graphviz_from_AST_node(AST_node* node, char* file_name);
 
 #endif // AST_H

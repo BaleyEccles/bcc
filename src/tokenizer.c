@@ -22,6 +22,28 @@ bool token_is_parentheses(token* t) {
     return false;
 }
 
+bool token_is_opening_parentheses(token* t) {
+    if (t != NULL) {
+        for (size_t i = 0; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i += 2) {
+            if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool token_is_closing_parentheses(token* t) {
+    if (t != NULL) {
+        for (size_t i = 1; i < sizeof(parentheses_mapping)/sizeof(parentheses_mapping[0]); i += 2) {
+            if (strcmp(parentheses_mapping[i].string, t->data) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 
 bool token_is_modifier(token* t)
 {
@@ -324,7 +346,7 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
         strcat(tmp, next);
         type_name = tmp;
     }
-    printf("type: %s %i\n", type_name, t->pos_in_file);
+    //printf("type: %s %i\n", type_name, t->pos_in_file);
     
     for (int i = 0; i < types->count; i++) {
         type* ty = ((type**)types->data)[i];

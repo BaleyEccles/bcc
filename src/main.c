@@ -372,7 +372,7 @@ int main(int argc, char *argv[])
     
     
     for (int i = 0; i < tokens.count; i++) {
-        printf("%s", ((token**)tokens.data)[i]->data);
+        //printf("%s", ((token**)tokens.data)[i]->data);
     }
     clean_tokens(&tokens);
     generate_types(&ctx);
