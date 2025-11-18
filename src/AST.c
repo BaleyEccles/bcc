@@ -407,7 +407,6 @@ AST_node* create_ternery_node(AST_node* scope, context* ctx, int start, int end,
 
 }
 
-
 AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int end)
 {
     // TODO: FIXME: a + b - c + d gets parsed as a + b - (c + d), which is wrong
@@ -486,6 +485,7 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
         else if (((token**)ctx->tokens->data)[i]->type == PAREN_SQUARE_OPEN) {
             return create_array_access_node(scope, ctx, start, end);
         }
+
     }
 
     // There are no operators in the currnet token list
@@ -493,14 +493,43 @@ AST_node* create_expression_node(AST_node* scope, context* ctx, int start, int e
     return create_constant_node(scope, ctx, start, end);
 }
 
+void create_multiple_init_nodes(AST_node* scope, AST_node* equals_node, context* ctx, int start, int end)
+{
+    if (((token**)ctx->tokens->data)[start]->type == PAREN_CURLY_OPEN && get_closing_paren_location(ctx->tokens, start) == end - 1) {
+        start++;
+        end--;
+    }
+    
+    //printf("DAS:\n");
+    //for (int i = start; i < end; i++) {
+    //    printf("T: %s\n", ((token**)ctx->tokens->data)[i]->data);
+    //}
+    
+    // split by ','. create_expression_node(...)
+    for (int i = start; i < end; i++) {
+        token* t = ((token**)ctx->tokens->data)[i];
+        if (token_is_opening_parentheses(t)) {
+            i = get_closing_paren_location(ctx->tokens, i) + 1;
+        }
+        int start_arg = i;
+        int end_arg = find_comma(ctx->tokens, start_arg, end) - 1;
+        AST_node* n = create_expression_node(scope, ctx, start_arg, end_arg);
+        da_append(equals_node->children, n, AST_node*);
+        i = end_arg + 1;
+    }
+}
 
 void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, context* ctx, int start, int end)
 {
-    int equals_loc = start + 1;
     token* t = ((token**)ctx->tokens->data)[start + 1];
-    if (t->type == ACCESS_MEMBER) {
-        equals_loc = equals_loc + 2;
+    int equals_loc = -1;
+    for (int i = start; i < end; i++) {
+        if (token_is_modifier(((token**)ctx->tokens->data)[i])) {
+            equals_loc = i;
+            break;
+        }
     }
+
     AST_node* equals_node = malloc(sizeof(AST_node));
     init_AST_node(equals_node);
 
@@ -541,16 +570,30 @@ void create_declare_and_modify_varible_node(AST_node* scope, AST_node* node, con
         v->name = ((token**)ctx->tokens->data)[start]->data;
         varible_node->data = (void*)v;
     }
-        
-
-    // Expression
     
-    AST_node* expression_node = create_expression_node(scope, ctx, equals_loc + 1, end - 1);
-
-    // Adding nodes
+    if (((token**)ctx->tokens->data)[start + 1]->type == PAREN_SQUARE_OPEN) {
+        int closing_paren_loc = get_closing_paren_location(ctx->tokens, start + 1);
+        AST_node* access_node = create_expression_node(scope, ctx, start + 2, closing_paren_loc);
+        da_append(varible_node->children, access_node, AST_node*);
+        if (((token**)ctx->tokens->data)[closing_paren_loc + 1]->type == PAREN_SQUARE_OPEN) {
+            fprintf(stderr, "%s:%d: TODO: Array with greater than 1 dimension was not handled\n\tJust put this in a while loop\n", __FILE__, __LINE__);
+        }
+    }
+        
     da_append(equals_node->children, varible_node, AST_node*);
-    da_append(equals_node->children, expression_node, AST_node*);
+    
+    // Expression
+    // {1, 2, 3, ...}
+    if (((token**)ctx->tokens->data)[equals_loc + 1]->type == PAREN_CURLY_OPEN) {
+        // This function adds the nodes to equals_node
+        create_multiple_init_nodes(scope, equals_node, ctx, equals_loc + 1, end);
+    } else {
+        AST_node* expression_node = create_expression_node(scope, ctx, equals_loc + 1, end - 1);
+        da_append(equals_node->children, expression_node, AST_node*);
+    }
+    
     da_append(node->children, equals_node, AST_node*);
+    
 }
 
 void create_declare_varible_node(AST_node* scope, AST_node* node, context* ctx, int start)
@@ -631,7 +674,6 @@ void create_return_node(AST_node* scope, AST_node* node, context* ctx, token* t)
 
 int create_if_node(AST_node* scope, AST_node* node, context* ctx, token* t)
 {
-    printf("IF: %s\n", t->data);
     AST_node* if_node = malloc(sizeof(AST_node));
     init_AST_node(if_node);
     
@@ -940,6 +982,7 @@ void generate_AST(AST_node* scope, AST_node* node, context* ctx, int start, int 
         match_tokens(scope, node, ctx, &token_stack);
     }
     free(token_stack.data);
+    generate_graphviz_from_AST_node(scope, "TMP.gv");
 }
 
 void generate_function_inputs(context* ctx, AST_node* node, int start, int end)

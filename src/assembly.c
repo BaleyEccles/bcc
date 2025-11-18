@@ -500,7 +500,6 @@ char generate_rvalue_asm(FILE* file, AST_node* scope, AST_node* node)
         }
         break;
     }
-
     case FUNCTION_CALL: {
         output = generate_asm_function_call(file, scope, node);
         break;

@@ -100,6 +100,7 @@ typedef struct {
     char* string;
     int size; // In bytes
     int ptr_count;
+    int array_count;
     TOKEN_TYPE type_type;
     void* data;
 } type;

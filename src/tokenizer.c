@@ -297,11 +297,41 @@ int get_token_location(dynamic_array* tokens, token* t)
     return -1;
 }
 
+int get_array_count(dynamic_array* tokens, token* t)
+{
+    // int* a[1][5];
+    // ^t
+    // array_count = 2
+    
+    int loc = get_token_location(tokens, t) + 1;
+    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    int array_count = 0;
+
+    while (((token**)tokens->data)[loc]->type == TIMES) {
+        loc++;
+        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    }
+
+    // Deal with the [X]'s
+    if (((token**)tokens->data)[loc]->type == PAREN_OPEN) {
+        loc = get_closing_paren_location(tokens, loc);
+    }
+    loc++;
+    
+    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    while (((token**)tokens->data)[loc]->type == PAREN_SQUARE_OPEN) {
+        loc = get_closing_paren_location(tokens, loc) + 1;
+        array_count++;
+        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
+    }
+    return array_count;
+}
+
 int get_ptr_count(dynamic_array* tokens, token* t)
 {
-    // int* a[10][10];
+    // int* a[10][2];
     // ^t
-    // ptr_count = 3
+    // ptr_count = 1
     
     int loc = get_token_location(tokens, t) + 1;
     get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
@@ -313,19 +343,6 @@ int get_ptr_count(dynamic_array* tokens, token* t)
         ptr_count++;
         get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
     }
-    
-    // Deal with the [X]'s
-    if (((token**)tokens->data)[loc]->type == PAREN_OPEN) {
-        loc = get_closing_paren_location(tokens, loc);
-    }
-    loc++;
-    
-    get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
-    while (((token**)tokens->data)[loc]->type == PAREN_SQUARE_OPEN) {
-        loc = get_closing_paren_location(tokens, loc) + 1;
-        ptr_count++;
-        get_token_type(NULL, tokens, ((token**)tokens->data)[loc]);
-    }
 
     return ptr_count;
 }
@@ -334,6 +351,7 @@ int get_ptr_count(dynamic_array* tokens, token* t)
 type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
 {
     int ptr_count = get_ptr_count(tokens, t);
+    int array_count = get_array_count(tokens, t);
     
     char* type_name = t->data;
     if (strcmp(type_name, "unsigned") == 0) {
@@ -350,7 +368,7 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
     
     for (int i = 0; i < types->count; i++) {
         type* ty = ((type**)types->data)[i];
-        if (strcmp(ty->string, type_name) == 0 && ty->ptr_count == ptr_count) {
+        if (strcmp(ty->string, type_name) == 0 && ty->ptr_count == ptr_count && ty->array_count == array_count) {
             return ty;
         }
     }
@@ -359,11 +377,11 @@ type* get_type(dynamic_array* tokens, dynamic_array* types, token* t)
     return NULL;
 }
 
-bool is_type_defined(dynamic_array* ts, token* t, int ptr_count)
+bool is_type_defined(dynamic_array* ts, token* t, int ptr_count, int array_count)
 {
     for (int i = 0; i < ts->count; i++) {
         type* ty = ((type**)ts->data)[i];
-        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count) {
+        if (strcmp(ty->string, t->data) == 0 && ty->ptr_count == ptr_count && ty->array_count == array_count) {
             return true;
         }
     }
@@ -374,12 +392,14 @@ bool is_type_defined(dynamic_array* ts, token* t, int ptr_count)
 void generate_type(dynamic_array* ts, dynamic_array* tokens, token* t)
 {
     int ptr_count = get_ptr_count(tokens, t);
-    if (!is_type_defined(ts, t, ptr_count)) {
+    int array_count = get_array_count(tokens, t);
+    if (!is_type_defined(ts, t, ptr_count, array_count)) {
         type* ty = malloc(sizeof(type));
         ty->ptr_count = ptr_count;
+        ty->array_count = array_count;
         ty->string = t->data;
         ty->type_type = 0;
-        if (ptr_count > 0) {
+        if (ptr_count > 0 || array_count > 0) {
             ty->size = 8;
         } else {
             fprintf(stderr, "%s:%d: TODO: type size was not defined\n", __FILE__, __LINE__);
@@ -605,7 +625,7 @@ int find_comma(dynamic_array* tokens, int start, int end)
     for (int i = start; i < end + 1; i++) {
         token* t = ((token**)tokens->data)[i];
         if (t != NULL) {
-            if (token_is_parentheses(t)) {
+            if (token_is_opening_parentheses(t)) {
                 i = get_closing_paren_location(tokens, i);
             } else if (strcmp(t->data, ",") == 0) {
                 return i;
